@@ -29,6 +29,55 @@ class CreditService:
     def __init__(self) -> None:
         self._audit_service = AuditService()
 
+    def get_for_user(self, user_id: int) -> list[Credit]:
+        """Get all credits for a user, ordered by status and creation date."""
+        return (
+            Credit.query
+            .filter_by(user_id=user_id)
+            .order_by(Credit.status, Credit.created_at.desc())
+            .all()
+        )
+
+    def get_by_id(self, credit_id: int) -> Credit | None:
+        """Get a credit by ID."""
+        return db.session.get(Credit, credit_id)
+
+    def get_forecast(self, credit: Credit) -> list:
+        """Get forecast cache entries for a credit."""
+        return (
+            CreditForecastCache.query
+            .filter_by(credit_id=credit.id)
+            .order_by(CreditForecastCache.month_offset)
+            .all()
+        )
+
+    def create(
+        self,
+        name: str,
+        principal: Decimal,
+        effective_yearly_rate: Decimal,
+        disbursement_date: date,
+        interest_capitalization_day: int,
+        account_id: int,
+        scope: CreditScope,
+        user_id: int,
+    ) -> Credit:
+        """Create a new credit (convenience wrapper for blueprint usage)."""
+        from app.models.user import User
+        user = db.session.get(User, user_id)
+        if user is None:
+            raise ValueError("Benutzer nicht gefunden.")
+        return self.create_credit(
+            user=user,
+            name=name,
+            principal=principal,
+            rate=effective_yearly_rate,
+            disbursement_date=disbursement_date,
+            capitalization_day=interest_capitalization_day,
+            account_id=account_id,
+            scope=scope,
+        )
+
     def create_credit(
         self,
         user: User,

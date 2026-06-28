@@ -7,7 +7,7 @@ from flask import Flask, render_template
 from flask_login import current_user
 
 from app.config import config_by_name
-from app.extensions import db, migrate, login_manager, scheduler
+from app.extensions import db, migrate, login_manager, scheduler, csrf
 
 
 def create_app(config_name: str = "development") -> Flask:
@@ -27,6 +27,7 @@ def create_app(config_name: str = "development") -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    csrf.init_app(app)
 
     # Initialize scheduler (start only outside testing)
     if not app.config.get("TESTING"):
