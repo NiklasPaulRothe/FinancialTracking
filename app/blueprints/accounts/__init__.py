@@ -56,6 +56,8 @@ def create():
         kwargs = {
             "visible_to_partner": form.visible_to_partner.data,
         }
+        if form.starting_balance.data is not None:
+            kwargs["starting_balance"] = form.starting_balance.data
         if form.institute.data:
             kwargs["institute"] = form.institute.data
         if form.max_overdraft.data is not None:
@@ -106,6 +108,7 @@ def edit(id):
             "name": form.name.data,
             "institute": form.institute.data or None,
             "visible_to_partner": form.visible_to_partner.data,
+            "starting_balance": form.starting_balance.data,
         }
         if is_credit_card:
             updates["credit_limit"] = form.credit_limit.data

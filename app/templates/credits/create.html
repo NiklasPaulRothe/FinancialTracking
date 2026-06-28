@@ -3,73 +3,89 @@
 {% block title %}Kredit erstellen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neuen Kredit erstellen</h1>
-
-<form method="POST" action="{{ url_for('credits.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.name.label }}
-        {{ form.name(size=50) }}
-        {% for error in form.name.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neuer Kredit</h1>
+    <div class="actions">
+        <a href="{{ url_for('credits.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.principal.label }}
-        {{ form.principal() }}
-        {% for error in form.principal.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('credits.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="z.B. Autokredit") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.principal.label(class="form-label") }}
+                            {{ form.principal(class="form-control") }}
+                            {% for error in form.principal.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.effective_yearly_rate.label(class="form-label") }}
+                            {{ form.effective_yearly_rate(class="form-control") }}
+                            <small class="text-muted">z.B. 0.05 = 5% Jahreszins</small>
+                            {% for error in form.effective_yearly_rate.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.disbursement_date.label(class="form-label") }}
+                            {{ form.disbursement_date(class="form-control") }}
+                            {% for error in form.disbursement_date.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.interest_capitalization_day.label(class="form-label") }}
+                            {{ form.interest_capitalization_day(class="form-control") }}
+                            <small class="text-muted">Tag im Monat für Zinskapitalisierung</small>
+                            {% for error in form.interest_capitalization_day.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            {{ form.account_id.label(class="form-label") }}
+                            {{ form.account_id(class="form-select") }}
+                            {% for error in form.account_id.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.scope.label(class="form-label") }}
+                            {{ form.scope(class="form-select") }}
+                            {% for error in form.scope.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.effective_yearly_rate.label }}
-        {{ form.effective_yearly_rate() }}
-        <small>Beispiel: 0.05 entspricht 5% Jahreszins.</small>
-        {% for error in form.effective_yearly_rate.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.disbursement_date.label }}
-        {{ form.disbursement_date() }}
-        {% for error in form.disbursement_date.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.interest_capitalization_day.label }}
-        {{ form.interest_capitalization_day() }}
-        <small>Tag im Monat, an dem aufgelaufene Zinsen kapitalisiert werden.</small>
-        {% for error in form.interest_capitalization_day.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.account_id.label }}
-        {{ form.account_id() }}
-        {% for error in form.account_id.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.scope.label }}
-        {{ form.scope() }}
-        {% for error in form.scope.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('credits.index') }}">Zurück zur Übersicht</a></p>
+</div>
 {% endblock %}

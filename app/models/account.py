@@ -50,6 +50,9 @@ class Account(db.Model):
     balance = db.Column(
         db.Numeric(12, 2), nullable=False, default=Decimal("0.0")
     )
+    starting_balance = db.Column(
+        db.Numeric(12, 2), nullable=False, default=Decimal("0.0")
+    )
     active = db.Column(db.Boolean, nullable=False, default=True)
     institute = db.Column(db.String(100), nullable=True)
     visible_to_partner = db.Column(db.Boolean, nullable=False, default=True)

@@ -3,83 +3,110 @@
 {% block title %}Vermögenswirksame Leistungen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Vermögenswirksame Leistungen (VL)</h1>
+<div class="page-header">
+    <h1><i class="bi bi-coin me-2"></i>Vermögenswirksame Leistungen (VL)</h1>
+    <div class="actions">
+        <a href="{{ url_for('vl.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Neuer Vertrag
+        </a>
+    </div>
+</div>
 
-<a href="{{ url_for('vl.create') }}">Neuen VL-Vertrag anlegen</a>
-
-<section>
-    <h2>Aktive Verträge</h2>
-    {% if active_contracts %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Vertragsbeginn</th>
-                    <th>AG-Beitrag</th>
-                    <th>AN-Beitrag</th>
-                    <th>Gesamt (mtl.)</th>
-                    <th>Sperrfrist bis</th>
-                    <th>Sperrfrist</th>
-                    <th>ETF-Position</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for contract in active_contracts %}
-                <tr>
-                    <td>{{ contract.start_date.strftime("%d.%m.%Y") }}</td>
-                    <td>{{ "%.2f"|format(contract.employer_contribution_monthly) }} €</td>
-                    <td>{{ "%.2f"|format(contract.employee_contribution_monthly) }} €</td>
-                    <td>{{ "%.2f"|format(contract.total_contribution_monthly) }} €</td>
-                    <td>{{ contract.lock_up_end_date.strftime("%d.%m.%Y") }}</td>
-                    <td>
-                        {% if today < contract.lock_up_end_date %}
-                            <span class="badge-locked">Gesperrt</span>
-                        {% else %}
-                            <span class="badge-unlocked">Verfügbar</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if contract.etf_position %}
-                            {{ contract.etf_position.name }} ({{ contract.etf_position.ticker }})
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('vl.detail', id=contract.id) }}">Details</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine aktiven VL-Verträge vorhanden.</p>
-    {% endif %}
-</section>
+<!-- Aktive Verträge -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-coin me-2"></i>Aktive Verträge</span>
+        <span class="badge bg-secondary">{{ active_contracts|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if active_contracts %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Vertragsbeginn</th>
+                        <th class="text-end">AG-Beitrag</th>
+                        <th class="text-end">AN-Beitrag</th>
+                        <th class="text-end">Gesamt (mtl.)</th>
+                        <th>Sperrfrist bis</th>
+                        <th>Sperrfrist</th>
+                        <th>ETF-Position</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in active_contracts %}
+                    <tr>
+                        <td>{{ contract.start_date.strftime("%d.%m.%Y") }}</td>
+                        <td class="text-end">{{ "%.2f"|format(contract.employer_contribution_monthly) }} €</td>
+                        <td class="text-end">{{ "%.2f"|format(contract.employee_contribution_monthly) }} €</td>
+                        <td class="text-end fw-medium text-success">{{ "%.2f"|format(contract.total_contribution_monthly) }} €</td>
+                        <td>{{ contract.lock_up_end_date.strftime("%d.%m.%Y") }}</td>
+                        <td>
+                            {% if today < contract.lock_up_end_date %}
+                                <span class="badge bg-danger">Gesperrt</span>
+                            {% else %}
+                                <span class="badge bg-success">Verfügbar</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if contract.etf_position %}
+                                {{ contract.etf_position.name }} ({{ contract.etf_position.ticker }})
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('vl.detail', id=contract.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-coin d-block"></i>
+            <p>Keine aktiven VL-Verträge vorhanden.</p>
+            <a href="{{ url_for('vl.create') }}" class="btn btn-primary btn-sm">Vertrag anlegen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 
 {% if inactive_contracts %}
-<section>
-    <h2>Inaktive Verträge</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Vertragsbeginn</th>
-                <th>Gesamt (mtl.)</th>
-                <th>Sperrfrist bis</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for contract in inactive_contracts %}
-            <tr>
-                <td>{{ contract.start_date.strftime("%d.%m.%Y") }}</td>
-                <td>{{ "%.2f"|format(contract.total_contribution_monthly) }} €</td>
-                <td>{{ contract.lock_up_end_date.strftime("%d.%m.%Y") }}</td>
-                <td><span class="badge-inactive">Inaktiv</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
+<!-- Inaktive Verträge -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-coin me-2"></i>Inaktive Verträge</span>
+        <span class="badge bg-secondary">{{ inactive_contracts|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Vertragsbeginn</th>
+                        <th class="text-end">Gesamt (mtl.)</th>
+                        <th>Sperrfrist bis</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in inactive_contracts %}
+                    <tr>
+                        <td>{{ contract.start_date.strftime("%d.%m.%Y") }}</td>
+                        <td class="text-end">{{ "%.2f"|format(contract.total_contribution_monthly) }} €</td>
+                        <td>{{ contract.lock_up_end_date.strftime("%d.%m.%Y") }}</td>
+                        <td><span class="badge bg-danger">Inaktiv</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endif %}
 {% endblock %}

@@ -3,35 +3,48 @@
 {% block title %}Ausgleich erstellen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neuen Ausgleich erstellen</h1>
-
-{% if partner %}
-    <p>Zahlung von <strong>{{ current_user.username }}</strong> an <strong>{{ partner.username }}</strong>.</p>
-{% endif %}
-
-<form method="POST" action="{{ url_for('settlements.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.amount.label }}
-        {{ form.amount() }}
-        {% for error in form.amount.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neuer Ausgleich</h1>
+    <div class="actions">
+        <a href="{{ url_for('settlements.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.date.label }}
-        {{ form.date() }}
-        {% for error in form.date.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                {% if partner %}
+                    <p class="mb-4">Zahlung von <strong>{{ current_user.username }}</strong> an <strong>{{ partner.username }}</strong>.</p>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('settlements.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.amount.label(class="form-label") }}
+                        {{ form.amount(class="form-control") }}
+                        {% for error in form.amount.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.date.label(class="form-label") }}
+                        {{ form.date(class="form-control") }}
+                        {% for error in form.date.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('settlements.index') }}">Zurück zur Übersicht</a></p>
+</div>
 {% endblock %}

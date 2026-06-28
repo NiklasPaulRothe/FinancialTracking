@@ -3,40 +3,53 @@
 {% block title %}Sparziel erstellen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neues Sparziel erstellen</h1>
-
-<form method="POST" action="{{ url_for('saving_goals.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.name.label }}
-        {{ form.name(size=50) }}
-        {% for error in form.name.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neues Sparziel</h1>
+    <div class="actions">
+        <a href="{{ url_for('saving_goals.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.target_amount.label }}
-        {{ form.target_amount() }}
-        <small>Leer lassen für ein offenes Sparziel ohne festen Zielbetrag.</small>
-        {% for error in form.target_amount.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('saving_goals.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="z.B. Urlaub 2025") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.target_amount.label(class="form-label") }}
+                        {{ form.target_amount(class="form-control") }}
+                        <small class="text-muted">Leer lassen für ein offenes Sparziel ohne festen Zielbetrag.</small>
+                        {% for error in form.target_amount.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.scope.label(class="form-label") }}
+                        {{ form.scope(class="form-select") }}
+                        {% for error in form.scope.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.scope.label }}
-        {{ form.scope() }}
-        {% for error in form.scope.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('saving_goals.index') }}">Zurück zur Übersicht</a></p>
+</div>
 {% endblock %}

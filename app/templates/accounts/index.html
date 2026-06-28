@@ -3,83 +3,126 @@
 {% block title %}Konten — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Konten</h1>
+<div class="page-header">
+    <h1><i class="bi bi-bank me-2"></i>Konten</h1>
+    <div class="actions">
+        <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Neues Konto
+        </a>
+    </div>
+</div>
 
-<a href="{{ url_for('accounts.create') }}">Neues Konto erstellen</a>
+<!-- Giro- und Sparkonten -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-wallet2 me-2"></i>Giro- und Sparkonten</span>
+        <span class="badge bg-secondary">{{ spending_saving|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if spending_saving %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Typ</th>
+                        <th>Zuordnung</th>
+                        <th class="text-end">Kontostand</th>
+                        <th>Institut</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in spending_saving %}
+                    <tr>
+                        <td class="fw-medium" style="color: var(--text-primary);">{{ account.name }}</td>
+                        <td>
+                            <span class="badge bg-primary">{{ "Girokonto" if account.type.value == "spending" else "Sparkonto" }}</span>
+                        </td>
+                        <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td class="text-end fw-medium {{ 'text-success' if account.balance >= 0 else 'text-danger' }}">
+                            {{ "%.2f"|format(account.balance) }} €
+                        </td>
+                        <td>{{ account.institute or "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('accounts.edit', id=account.id) }}" class="btn btn-secondary btn-sm me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Konto wirklich löschen?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-wallet2 d-block"></i>
+            <p>Keine Giro- oder Sparkonten vorhanden.</p>
+            <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">Konto erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 
-<section>
-    <h2>Giro- und Sparkonten</h2>
-    {% if spending_saving %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Typ</th>
-                    <th>Zuordnung</th>
-                    <th>Kontostand</th>
-                    <th>Institut</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for account in spending_saving %}
-                <tr>
-                    <td>{{ account.name }}</td>
-                    <td>{{ "Girokonto" if account.type.value == "spending" else "Sparkonto" }}</td>
-                    <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
-                    <td>{{ "%.2f"|format(account.balance) }} €</td>
-                    <td>{{ account.institute or "—" }}</td>
-                    <td>
-                        <a href="{{ url_for('accounts.edit', id=account.id) }}">Bearbeiten</a>
-                        <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" onclick="return confirm('Konto wirklich löschen?')">Löschen</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine Giro- oder Sparkonten vorhanden.</p>
-    {% endif %}
-</section>
-
-<section>
-    <h2>Kreditkarten</h2>
-    {% if credit_cards %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Zuordnung</th>
-                    <th>Kontostand</th>
-                    <th>Kreditlimit</th>
-                    <th>Institut</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for account in credit_cards %}
-                <tr>
-                    <td>{{ account.name }}</td>
-                    <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
-                    <td>{{ "%.2f"|format(account.balance) }} €</td>
-                    <td>{{ "%.2f"|format(account.credit_limit) if account.credit_limit else "—" }} €</td>
-                    <td>{{ account.institute or "—" }}</td>
-                    <td>
-                        <a href="{{ url_for('accounts.edit', id=account.id) }}">Bearbeiten</a>
-                        <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" onclick="return confirm('Konto wirklich löschen?')">Löschen</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine Kreditkarten vorhanden.</p>
-    {% endif %}
-</section>
+<!-- Kreditkarten -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-credit-card me-2"></i>Kreditkarten</span>
+        <span class="badge bg-secondary">{{ credit_cards|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if credit_cards %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Zuordnung</th>
+                        <th class="text-end">Kontostand</th>
+                        <th class="text-end">Kreditlimit</th>
+                        <th>Institut</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in credit_cards %}
+                    <tr>
+                        <td class="fw-medium" style="color: var(--text-primary);">{{ account.name }}</td>
+                        <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td class="text-end fw-medium text-danger">
+                            {{ "%.2f"|format(account.balance) }} €
+                        </td>
+                        <td class="text-end">{{ "%.2f"|format(account.credit_limit) if account.credit_limit else "—" }} €</td>
+                        <td>{{ account.institute or "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('accounts.edit', id=account.id) }}" class="btn btn-secondary btn-sm me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Konto wirklich löschen?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-credit-card d-block"></i>
+            <p>Keine Kreditkarten vorhanden.</p>
+            <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">Kreditkarte hinzufügen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

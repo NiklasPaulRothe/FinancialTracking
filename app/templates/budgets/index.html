@@ -3,72 +3,92 @@
 {% block title %}Budgets — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Budgets</h1>
+<div class="page-header">
+    <h1><i class="bi bi-pie-chart me-2"></i>Budgets</h1>
+    <div class="actions">
+        <a href="{{ url_for('budgets.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Neues Budget
+        </a>
+    </div>
+</div>
 
-<a href="{{ url_for('budgets.create') }}">Neues Budget erstellen</a>
-
-{% if budget_details %}
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Zuordnung</th>
-                <th>Kategorie</th>
-                <th>Zeitraum</th>
-                <th>Budget</th>
-                <th>Ausgegeben</th>
-                <th>Auslastung</th>
-                <th>Aktionen</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in budget_details %}
-            <tr>
-                <td>{{ item.budget.name }}</td>
-                <td>{{ "Persönlich" if item.budget.scope.value == "personal" else "Gemeinsam" }}</td>
-                <td>{{ item.budget.category.name if item.budget.category else "Alle Kategorien" }}</td>
-                <td>
-                    {% if item.budget.period.value == "weekly" %}Wöchentlich
-                    {% elif item.budget.period.value == "monthly" %}Monatlich
-                    {% elif item.budget.period.value == "quarterly" %}Vierteljährlich
-                    {% elif item.budget.period.value == "yearly" %}Jährlich
-                    {% endif %}
-                </td>
-                <td>{{ "%.2f"|format(item.budget.amount) }} €</td>
-                <td>{{ "%.2f"|format(item.spent) }} €</td>
-                <td>
-                    <div class="progress-bar-container" style="background-color: #e9ecef; border-radius: 4px; height: 20px; width: 100%; position: relative;">
-                        <div class="progress-bar"
-                             style="width: {{ item.percentage }}%;
-                                    height: 100%;
-                                    border-radius: 4px;
-                                    {% if item.color == 'success' %}background-color: #28a745;
-                                    {% elif item.color == 'warning' %}background-color: #ffc107;
-                                    {% else %}background-color: #dc3545;
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-pie-chart me-2"></i>Alle Budgets</span>
+        <span class="badge bg-secondary">{{ budget_details|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if budget_details %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Zuordnung</th>
+                        <th>Kategorie</th>
+                        <th>Zeitraum</th>
+                        <th class="text-end">Budget</th>
+                        <th class="text-end">Ausgegeben</th>
+                        <th>Auslastung</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in budget_details %}
+                    <tr>
+                        <td class="fw-medium" style="color: var(--text-primary);">{{ item.budget.name }}</td>
+                        <td>{{ "Persönlich" if item.budget.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td>{{ item.budget.category.name if item.budget.category else "Alle Kategorien" }}</td>
+                        <td>
+                            {% if item.budget.period.value == "weekly" %}Wöchentlich
+                            {% elif item.budget.period.value == "monthly" %}Monatlich
+                            {% elif item.budget.period.value == "quarterly" %}Vierteljährlich
+                            {% elif item.budget.period.value == "yearly" %}Jährlich
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{{ "%.2f"|format(item.budget.amount) }} €</td>
+                        <td class="text-end fw-medium {{ 'text-danger' if item.percentage_raw > 100 else 'text-success' }}">
+                            {{ "%.2f"|format(item.spent) }} €
+                        </td>
+                        <td style="min-width: 120px;">
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar
+                                    {% if item.color == 'success' %}bg-success
+                                    {% elif item.color == 'warning' %}bg-warning
+                                    {% else %}bg-danger
                                     {% endif %}"
-                             role="progressbar"
-                             aria-valuenow="{{ item.percentage_raw|round(1) }}"
-                             aria-valuemin="0"
-                             aria-valuemax="100"
-                             aria-label="Budgetauslastung {{ item.percentage_raw|round(1) }}%">
-                        </div>
-                        <span style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); font-size: 12px; line-height: 20px;">
-                            {{ "%.1f"|format(item.percentage_raw) }}%
-                        </span>
-                    </div>
-                </td>
-                <td>
-                    <a href="{{ url_for('budgets.edit', id=item.budget.id) }}">Bearbeiten</a>
-                    <form method="POST" action="{{ url_for('budgets.delete', id=item.budget.id) }}" style="display:inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" onclick="return confirm('Budget wirklich löschen?')">Löschen</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <p>Keine Budgets vorhanden.</p>
-{% endif %}
+                                     role="progressbar"
+                                     style="width: {{ item.percentage }}%;"
+                                     aria-valuenow="{{ item.percentage_raw|round(1) }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    {{ "%.1f"|format(item.percentage_raw) }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('budgets.edit', id=item.budget.id) }}" class="btn btn-secondary btn-sm me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('budgets.delete', id=item.budget.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Budget wirklich löschen?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-pie-chart d-block"></i>
+            <p>Keine Budgets vorhanden.</p>
+            <a href="{{ url_for('budgets.create') }}" class="btn btn-primary btn-sm">Budget erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

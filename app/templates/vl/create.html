@@ -3,76 +3,92 @@
 {% block title %}VL-Vertrag anlegen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neuen VL-Vertrag anlegen</h1>
-
-<form method="POST" action="{{ url_for('vl.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.employer_contribution_monthly.label }}
-        {{ form.employer_contribution_monthly() }}
-        {% for error in form.employer_contribution_monthly.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neuer VL-Vertrag</h1>
+    <div class="actions">
+        <a href="{{ url_for('vl.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.employee_contribution_monthly.label }}
-        {{ form.employee_contribution_monthly() }}
-        <small>Optional — eigener Aufstockungsbetrag zusätzlich zum Arbeitgeber-Anteil.</small>
-        {% for error in form.employee_contribution_monthly.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('vl.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.employer_contribution_monthly.label(class="form-label") }}
+                            {{ form.employer_contribution_monthly(class="form-control") }}
+                            {% for error in form.employer_contribution_monthly.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.employee_contribution_monthly.label(class="form-label") }}
+                            {{ form.employee_contribution_monthly(class="form-control") }}
+                            <small class="text-muted">Optional — eigener Aufstockungsbetrag</small>
+                            {% for error in form.employee_contribution_monthly.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.start_date.label(class="form-label") }}
+                            {{ form.start_date(class="form-control") }}
+                            {% for error in form.start_date.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.lock_up_end_date.label(class="form-label") }}
+                            {{ form.lock_up_end_date(class="form-control") }}
+                            <small class="text-muted">Ende der Sperrfrist</small>
+                            {% for error in form.lock_up_end_date.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.etf_position_id.label(class="form-label") }}
+                        {{ form.etf_position_id(class="form-select") }}
+                        <small class="text-muted">Wenn die VL in einen ETF-Sparplan fließen, hier die Position wählen.</small>
+                        {% for error in form.etf_position_id.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            {{ form.sparzulage_rate.label(class="form-label") }}
+                            {{ form.sparzulage_rate(class="form-control") }}
+                            <small class="text-muted">z.B. 0.20 = 20%</small>
+                            {% for error in form.sparzulage_rate.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.annual_eligible_max.label(class="form-label") }}
+                            {{ form.annual_eligible_max(class="form-control") }}
+                            <small class="text-muted">Standard: 400,00 €</small>
+                            {% for error in form.annual_eligible_max.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.start_date.label }}
-        {{ form.start_date() }}
-        {% for error in form.start_date.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.lock_up_end_date.label }}
-        {{ form.lock_up_end_date() }}
-        <small>Datum, an dem die Sperrfrist endet und Mittel verfügbar werden.</small>
-        {% for error in form.lock_up_end_date.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.etf_position_id.label }}
-        {{ form.etf_position_id() }}
-        <small>Wenn die VL in einen ETF-Sparplan fließen, hier die Position wählen.</small>
-        {% for error in form.etf_position_id.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.sparzulage_rate.label }}
-        {{ form.sparzulage_rate() }}
-        <small>Dezimalwert, z.B. 0.20 für 20% Arbeitnehmer-Sparzulage.</small>
-        {% for error in form.sparzulage_rate.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.annual_eligible_max.label }}
-        {{ form.annual_eligible_max() }}
-        <small>Maximal förderfähiger Betrag pro Jahr (Standard: 400,00 €).</small>
-        {% for error in form.annual_eligible_max.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('vl.index') }}">Zurück zur Übersicht</a></p>
+</div>
 {% endblock %}

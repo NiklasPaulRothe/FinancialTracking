@@ -67,8 +67,8 @@ class AuditService:
             action=audit_action,
             model=model,
             record_id=record_id,
-            old_values=old_values,
-            new_values=new_values,
+            old_values=self._sanitize_values(old_values),
+            new_values=self._sanitize_values(new_values),
             user_id=user_id,
         )
 
@@ -180,3 +180,24 @@ class AuditService:
             )
 
         return query.order_by(AuditLog.created_at.asc()).all()
+
+    @staticmethod
+    def _sanitize_values(values: Optional[dict]) -> Optional[dict]:
+        """Convert non-JSON-serializable types (Decimal, date, etc.) to strings."""
+        if values is None:
+            return None
+        from decimal import Decimal
+        from datetime import date, datetime
+
+        sanitized = {}
+        for key, val in values.items():
+            if isinstance(val, Decimal):
+                sanitized[key] = str(val)
+            elif isinstance(val, (date, datetime)):
+                sanitized[key] = val.isoformat()
+            elif hasattr(val, 'value'):
+                # Enum types
+                sanitized[key] = val.value
+            else:
+                sanitized[key] = val
+        return sanitized

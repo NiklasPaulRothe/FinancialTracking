@@ -65,6 +65,7 @@ CREATE TABLE accounts (
     type account_type NOT NULL,
     scope account_scope NOT NULL,
     balance NUMERIC(12,2) NOT NULL DEFAULT 0.0,
+    starting_balance NUMERIC(12,2) NOT NULL DEFAULT 0.0,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     institute VARCHAR(100),
     visible_to_partner BOOLEAN NOT NULL DEFAULT TRUE,

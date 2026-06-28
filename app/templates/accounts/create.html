@@ -3,87 +3,115 @@
 {% block title %}Konto erstellen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neues Konto erstellen</h1>
-
-<form method="POST" action="{{ url_for('accounts.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.name.label }}
-        {{ form.name(size=50) }}
-        {% for error in form.name.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neues Konto erstellen</h1>
+    <div class="actions">
+        <a href="{{ url_for('accounts.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.type.label }}
-        {{ form.type() }}
-        {% for error in form.type.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('accounts.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
 
-    <div>
-        {{ form.scope.label }}
-        {{ form.scope() }}
-        {% for error in form.scope.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="z.B. Girokonto") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
 
-    <div>
-        {{ form.institute.label }}
-        {{ form.institute(size=50) }}
-        {% for error in form.institute.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.type.label(class="form-label") }}
+                            {{ form.type(class="form-select") }}
+                            {% for error in form.type.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.scope.label(class="form-label") }}
+                            {{ form.scope(class="form-select") }}
+                            {% for error in form.scope.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
 
-    <div>
-        {{ form.visible_to_partner() }} {{ form.visible_to_partner.label }}
-    </div>
+                    <div class="mb-3">
+                        {{ form.institute.label(class="form-label") }}
+                        {{ form.institute(class="form-control", placeholder="z.B. Sparkasse") }}
+                        {% for error in form.institute.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
 
-    <div>
-        {{ form.max_overdraft.label }}
-        {{ form.max_overdraft() }}
-        {% for error in form.max_overdraft.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.starting_balance.label(class="form-label") }}
+                            {{ form.starting_balance(class="form-control", placeholder="0,00") }}
+                            <div class="form-text">Aktueller Kontostand beim Anlegen (positiv oder negativ).</div>
+                            {% for error in form.starting_balance.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.max_overdraft.label(class="form-label") }}
+                            {{ form.max_overdraft(class="form-control", placeholder="Optional") }}
+                            {% for error in form.max_overdraft.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
 
-    <fieldset id="credit-card-fields">
-        <legend>Kreditkarten-Details</legend>
+                    <div class="form-check mb-4">
+                        {{ form.visible_to_partner(class="form-check-input") }}
+                        {{ form.visible_to_partner.label(class="form-check-label") }}
+                    </div>
 
-        <div>
-            {{ form.credit_limit.label }}
-            {{ form.credit_limit() }}
-            {% for error in form.credit_limit.errors %}
-                <span class="error">{{ error }}</span>
-            {% endfor %}
+                    <div class="card mb-3" id="credit-card-fields" style="border-color: var(--border-color);">
+                        <div class="card-header">
+                            <i class="bi bi-credit-card me-2"></i>Kreditkarten-Details
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    {{ form.credit_limit.label(class="form-label") }}
+                                    {{ form.credit_limit(class="form-control") }}
+                                    {% for error in form.credit_limit.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.statement_closing_day.label(class="form-label") }}
+                                    {{ form.statement_closing_day(class="form-control") }}
+                                    {% for error in form.statement_closing_day.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.payment_due_day.label(class="form-label") }}
+                                    {{ form.payment_due_day(class="form-control") }}
+                                    {% for error in form.payment_due_day.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <div>
-            {{ form.statement_closing_day.label }}
-            {{ form.statement_closing_day() }}
-            {% for error in form.statement_closing_day.errors %}
-                <span class="error">{{ error }}</span>
-            {% endfor %}
-        </div>
-
-        <div>
-            {{ form.payment_due_day.label }}
-            {{ form.payment_due_day() }}
-            {% for error in form.payment_due_day.errors %}
-                <span class="error">{{ error }}</span>
-            {% endfor %}
-        </div>
-    </fieldset>
-
-    <div>
-        {{ form.submit() }}
     </div>
-</form>
-
-<p><a href="{{ url_for('accounts.index') }}">Zurück zur Kontenübersicht</a></p>
+</div>
 {% endblock %}

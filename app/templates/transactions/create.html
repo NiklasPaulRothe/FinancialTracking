@@ -3,81 +3,97 @@
 {% block title %}Transaktion erstellen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neue Transaktion erstellen</h1>
-
-<form method="POST" action="{{ url_for('transactions.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.type.label }}
-        {{ form.type(id="transaction-type") }}
-        {% for error in form.type.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neue Transaktion erstellen</h1>
+    <div class="actions">
+        <a href="{{ url_for('transactions.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.amount.label }}
-        {{ form.amount(step="0.01", min="0.01") }}
-        {% for error in form.amount.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('transactions.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.type.label(class="form-label") }}
+                        {{ form.type(class="form-select", id="transaction-type") }}
+                        {% for error in form.type.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.amount.label(class="form-label") }}
+                            {{ form.amount(class="form-control", step="0.01", min="0.01") }}
+                            {% for error in form.amount.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.date.label(class="form-label") }}
+                            {{ form.date(class="form-control") }}
+                            {% for error in form.date.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.account_id.label(class="form-label") }}
+                            {{ form.account_id(class="form-select") }}
+                            {% for error in form.account_id.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6" id="destination-account-field">
+                            {{ form.destination_account_id.label(class="form-label") }}
+                            {{ form.destination_account_id(class="form-select") }}
+                            {% for error in form.destination_account_id.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.scope.label(class="form-label") }}
+                            {{ form.scope(class="form-select") }}
+                            {% for error in form.scope.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.category_id.label(class="form-label") }}
+                            {{ form.category_id(class="form-select") }}
+                            {% for error in form.category_id.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control") }}
+                        {% for error in form.description.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.date.label }}
-        {{ form.date() }}
-        {% for error in form.date.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.account_id.label }}
-        {{ form.account_id() }}
-        {% for error in form.account_id.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div id="destination-account-field">
-        {{ form.destination_account_id.label }}
-        {{ form.destination_account_id() }}
-        {% for error in form.destination_account_id.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.scope.label }}
-        {{ form.scope() }}
-        {% for error in form.scope.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.category_id.label }}
-        {{ form.category_id() }}
-        {% for error in form.category_id.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.description.label }}
-        {{ form.description(size=80) }}
-        {% for error in form.description.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('transactions.index') }}">Zurück zur Transaktionsübersicht</a></p>
+</div>
 
 <script>
     // Show/hide destination account field based on transaction type

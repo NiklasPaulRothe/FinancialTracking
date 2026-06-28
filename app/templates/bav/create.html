@@ -3,56 +3,71 @@
 {% block title %}bAV-Vertrag anlegen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neuen bAV-Vertrag anlegen</h1>
-
-<form method="POST" action="{{ url_for('bav.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.provider.label }}
-        {{ form.provider(size=50) }}
-        {% for error in form.provider.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neuer bAV-Vertrag</h1>
+    <div class="actions">
+        <a href="{{ url_for('bav.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.type.label }}
-        {{ form.type() }}
-        {% for error in form.type.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('bav.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.provider.label(class="form-label") }}
+                        {{ form.provider(class="form-control", placeholder="z.B. Allianz") }}
+                        {% for error in form.provider.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.type.label(class="form-label") }}
+                            {{ form.type(class="form-select") }}
+                            {% for error in form.type.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.start_date.label(class="form-label") }}
+                            {{ form.start_date(class="form-control") }}
+                            {% for error in form.start_date.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            {{ form.employee_contribution_monthly.label(class="form-label") }}
+                            {{ form.employee_contribution_monthly(class="form-control") }}
+                            {% for error in form.employee_contribution_monthly.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.employer_contribution_monthly.label(class="form-label") }}
+                            {{ form.employer_contribution_monthly(class="form-control") }}
+                            <small class="text-muted">0,00 wenn kein AG-Zuschuss</small>
+                            {% for error in form.employer_contribution_monthly.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.start_date.label }}
-        {{ form.start_date() }}
-        {% for error in form.start_date.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.employee_contribution_monthly.label }}
-        {{ form.employee_contribution_monthly() }}
-        {% for error in form.employee_contribution_monthly.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.employer_contribution_monthly.label }}
-        {{ form.employer_contribution_monthly() }}
-        <small>Auf 0,00 setzen, wenn kein Arbeitgeberzuschuss vorhanden.</small>
-        {% for error in form.employer_contribution_monthly.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('bav.index') }}">Zurück zur Übersicht</a></p>
+</div>
 {% endblock %}

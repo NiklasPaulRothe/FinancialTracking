@@ -3,83 +3,118 @@
 {% block title %}Ausgleichszahlungen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Ausgleichszahlungen</h1>
+<div class="page-header">
+    <h1><i class="bi bi-people me-2"></i>Ausgleichszahlungen</h1>
+    <div class="actions">
+        <a href="{{ url_for('settlements.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Neuer Ausgleich
+        </a>
+    </div>
+</div>
 
-<section>
-    <h2>Nettobilanz</h2>
-    {% if partner %}
-        {% if net_balance > 0 %}
-            <p><strong>{{ partner.username }}</strong> schuldet dir <strong>{{ "%.2f"|format(net_balance) }} €</strong>.</p>
-        {% elif net_balance < 0 %}
-            <p>Du schuldest <strong>{{ partner.username }}</strong> <strong>{{ "%.2f"|format(net_balance|abs) }} €</strong>.</p>
+<!-- Nettobilanz -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center">
+        <span><i class="bi bi-balance-scale me-2"></i>Nettobilanz</span>
+    </div>
+    <div class="card-body">
+        {% if partner %}
+            {% if net_balance > 0 %}
+                <p class="mb-0"><strong>{{ partner.username }}</strong> schuldet dir <strong class="text-success">{{ "%.2f"|format(net_balance) }} €</strong>.</p>
+            {% elif net_balance < 0 %}
+                <p class="mb-0">Du schuldest <strong>{{ partner.username }}</strong> <strong class="text-danger">{{ "%.2f"|format(net_balance|abs) }} €</strong>.</p>
+            {% else %}
+                <p class="mb-0 text-success">Keine offenen Beträge — alles ausgeglichen.</p>
+            {% endif %}
         {% else %}
-            <p>Keine offenen Beträge — alles ausgeglichen.</p>
+            <p class="mb-0 text-muted">Kein Partner im Haushalt vorhanden.</p>
         {% endif %}
-    {% else %}
-        <p>Kein Partner im Haushalt vorhanden.</p>
-    {% endif %}
-</section>
+    </div>
+</div>
 
-<a href="{{ url_for('settlements.create') }}">Neuen Ausgleich erstellen</a>
+<!-- Ausgleichshistorie -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2"></i>Ausgleichshistorie</span>
+        <span class="badge bg-secondary">{{ settlements|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if settlements %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Von</th>
+                        <th>An</th>
+                        <th class="text-end">Betrag</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for settlement in settlements %}
+                    <tr>
+                        <td>{{ settlement.date.strftime('%d.%m.%Y') }}</td>
+                        <td>{{ settlement.from_user.username }}</td>
+                        <td>{{ settlement.to_user.username }}</td>
+                        <td class="text-end fw-medium">{{ "%.2f"|format(settlement.amount) }} €</td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('settlements.delete', id=settlement.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Ausgleich wirklich löschen? Zuordnungen werden rückgängig gemacht.');">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-people d-block"></i>
+            <p>Keine Ausgleichszahlungen vorhanden.</p>
+            <a href="{{ url_for('settlements.create') }}" class="btn btn-primary btn-sm">Ausgleich erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 
-<section>
-    <h2>Ausgleichshistorie</h2>
-    {% if settlements %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Datum</th>
-                    <th>Von</th>
-                    <th>An</th>
-                    <th>Betrag</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for settlement in settlements %}
-                <tr>
-                    <td>{{ settlement.date.strftime('%d.%m.%Y') }}</td>
-                    <td>{{ settlement.from_user.username }}</td>
-                    <td>{{ settlement.to_user.username }}</td>
-                    <td>{{ "%.2f"|format(settlement.amount) }} €</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('settlements.delete', id=settlement.id) }}" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" onclick="return confirm('Ausgleich wirklich löschen? Zuordnungen werden rückgängig gemacht.');">Löschen</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine Ausgleichszahlungen vorhanden.</p>
-    {% endif %}
-</section>
-
-<section>
-    <h2>Offene gemeinsame Ausgaben</h2>
-    {% if outstanding_shares %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Benutzer</th>
-                    <th>Betrag</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for share in outstanding_shares %}
-                <tr>
-                    <td>{{ share.user.username }}</td>
-                    <td>{{ "%.2f"|format(share.amount) }} €</td>
-                    <td>Offen</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine offenen gemeinsamen Ausgaben.</p>
-    {% endif %}
-</section>
+<!-- Offene gemeinsame Ausgaben -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-exclamation-circle me-2"></i>Offene gemeinsame Ausgaben</span>
+        <span class="badge bg-secondary">{{ outstanding_shares|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if outstanding_shares %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Benutzer</th>
+                        <th class="text-end">Betrag</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for share in outstanding_shares %}
+                    <tr>
+                        <td>{{ share.user.username }}</td>
+                        <td class="text-end fw-medium text-danger">{{ "%.2f"|format(share.amount) }} €</td>
+                        <td><span class="badge bg-danger">Offen</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-check-circle d-block"></i>
+            <p>Keine offenen gemeinsamen Ausgaben.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

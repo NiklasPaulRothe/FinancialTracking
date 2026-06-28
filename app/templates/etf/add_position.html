@@ -3,55 +3,70 @@
 {% block title %}ETF-Position hinzufügen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neue ETF-Position hinzufügen</h1>
-
-<form method="POST" action="{{ url_for('etf.add_position') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.ticker.label }}
-        {{ form.ticker(size=10, placeholder="z.B. VWCE") }}
-        {% for error in form.ticker.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neue ETF-Position</h1>
+    <div class="actions">
+        <a href="{{ url_for('etf.portfolio') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <div>
-        {{ form.exchange_suffix.label }}
-        {{ form.exchange_suffix(size=10, placeholder="z.B. DE") }}
-        {% for error in form.exchange_suffix.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('etf.add_position') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.ticker.label(class="form-label") }}
+                            {{ form.ticker(class="form-control", placeholder="z.B. VWCE") }}
+                            {% for error in form.ticker.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.exchange_suffix.label(class="form-label") }}
+                            {{ form.exchange_suffix(class="form-control", placeholder="z.B. DE") }}
+                            {% for error in form.exchange_suffix.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="z.B. Vanguard FTSE All-World") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            {{ form.shares.label(class="form-label") }}
+                            {{ form.shares(class="form-control") }}
+                            {% for error in form.shares.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.average_buy_price.label(class="form-label") }}
+                            {{ form.average_buy_price(class="form-control") }}
+                            {% for error in form.average_buy_price.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.name.label }}
-        {{ form.name(size=50, placeholder="z.B. Vanguard FTSE All-World") }}
-        {% for error in form.name.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.shares.label }}
-        {{ form.shares() }}
-        {% for error in form.shares.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.average_buy_price.label }}
-        {{ form.average_buy_price() }}
-        {% for error in form.average_buy_price.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('etf.portfolio') }}">Zurück zum Portfolio</a></p>
+</div>
 {% endblock %}

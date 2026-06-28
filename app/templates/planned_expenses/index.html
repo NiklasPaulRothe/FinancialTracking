@@ -3,86 +3,120 @@
 {% block title %}Geplante Ausgaben — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Geplante Ausgaben</h1>
+<div class="page-header">
+    <h1><i class="bi bi-cart-check me-2"></i>Geplante Ausgaben</h1>
+    <div class="actions">
+        <a href="{{ url_for('planned_expenses.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Neue geplante Ausgabe
+        </a>
+    </div>
+</div>
 
-<a href="{{ url_for('planned_expenses.create') }}">Neue geplante Ausgabe erstellen</a>
+<!-- Offene geplante Ausgaben -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-cart-check me-2"></i>Offene geplante Ausgaben</span>
+        <span class="badge bg-secondary">{{ unresolved|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if unresolved %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="text-end">Betrag</th>
+                        <th>Zuordnung</th>
+                        <th>Konto</th>
+                        <th>Blockierend</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in unresolved %}
+                    <tr>
+                        <td class="fw-medium" style="color: var(--text-primary);">{{ expense.name }}</td>
+                        <td class="text-end fw-medium text-danger">{{ expense.display_amount }}</td>
+                        <td>{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td>{{ expense.account.name if expense.account else "—" }}</td>
+                        <td>
+                            {% if expense.blocking %}
+                                <span class="badge bg-danger">Ja</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Nein</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('planned_expenses.edit', id=expense.id) }}" class="btn btn-secondary btn-sm me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('planned_expenses.delete', id=expense.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Wirklich löschen?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-cart-check d-block"></i>
+            <p>Keine offenen geplanten Ausgaben vorhanden.</p>
+            <a href="{{ url_for('planned_expenses.create') }}" class="btn btn-primary btn-sm">Geplante Ausgabe erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 
-<section>
-    <h2>Offene geplante Ausgaben</h2>
-    {% if unresolved %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Betrag</th>
-                    <th>Zuordnung</th>
-                    <th>Konto</th>
-                    <th>Blockierend</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for expense in unresolved %}
-                <tr>
-                    <td>{{ expense.name }}</td>
-                    <td>{{ expense.display_amount }}</td>
-                    <td>{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
-                    <td>{{ expense.account.name if expense.account else "—" }}</td>
-                    <td>
-                        {% if expense.blocking %}
-                            <span class="badge-blocking">Ja</span>
-                        {% else %}
-                            <span>Nein</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('planned_expenses.edit', id=expense.id) }}">Bearbeiten</a>
-                        <form method="POST" action="{{ url_for('planned_expenses.delete', id=expense.id) }}" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" onclick="return confirm('Wirklich löschen?')">Löschen</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine offenen geplanten Ausgaben vorhanden.</p>
-    {% endif %}
-</section>
-
-<section>
-    <h2>Erledigte geplante Ausgaben</h2>
-    {% if resolved %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Betrag</th>
-                    <th>Zuordnung</th>
-                    <th>Konto</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for expense in resolved %}
-                <tr>
-                    <td>{{ expense.name }}</td>
-                    <td>{{ expense.display_amount }}</td>
-                    <td>{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
-                    <td>{{ expense.account.name if expense.account else "—" }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('planned_expenses.delete', id=expense.id) }}" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" onclick="return confirm('Wirklich löschen?')">Löschen</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine erledigten geplanten Ausgaben vorhanden.</p>
-    {% endif %}
-</section>
+<!-- Erledigte geplante Ausgaben -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-check-circle me-2"></i>Erledigte geplante Ausgaben</span>
+        <span class="badge bg-secondary">{{ resolved|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if resolved %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="text-end">Betrag</th>
+                        <th>Zuordnung</th>
+                        <th>Konto</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in resolved %}
+                    <tr>
+                        <td class="fw-medium" style="color: var(--text-primary);">{{ expense.name }}</td>
+                        <td class="text-end">{{ expense.display_amount }}</td>
+                        <td>{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td>{{ expense.account.name if expense.account else "—" }}</td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('planned_expenses.delete', id=expense.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Wirklich löschen?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-check-circle d-block"></i>
+            <p>Keine erledigten geplanten Ausgaben vorhanden.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

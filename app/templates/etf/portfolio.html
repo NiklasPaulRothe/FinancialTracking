@@ -3,94 +3,133 @@
 {% block title %}ETF-Portfolio — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>ETF-Portfolio</h1>
+<div class="page-header">
+    <h1><i class="bi bi-graph-up me-2"></i>ETF-Portfolio</h1>
+    <div class="actions">
+        <a href="{{ url_for('etf.add_position') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Neue Position
+        </a>
+    </div>
+</div>
 
-<a href="{{ url_for('etf.add_position') }}">Neue Position hinzufügen</a>
+{% if portfolio_data %}
+<!-- Zusammenfassung -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center">
+        <span><i class="bi bi-calculator me-2"></i>Zusammenfassung</span>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Investiert</p>
+                <h4>{{ "%.2f"|format(total_invested) }} €</h4>
+            </div>
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Aktueller Wert</p>
+                <h4>{{ "%.2f"|format(total_value) }} €</h4>
+            </div>
+            <div class="col-md-4">
+                <p class="text-muted mb-1">Gewinn/Verlust</p>
+                {% if total_invested > 0 %}
+                <h4 class="{{ 'text-success' if (total_value - total_invested) >= 0 else 'text-danger' }}">
+                    {{ "%+.2f"|format(total_value - total_invested) }} €
+                    ({{ "%+.1f"|format((total_value - total_invested) / total_invested * 100) }}%)
+                </h4>
+                {% else %}
+                <h4>—</h4>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
-<section>
-    <h2>Positionen</h2>
-    {% if portfolio_data %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Ticker</th>
-                    <th>Name</th>
-                    <th>Anteile</th>
-                    <th>Ø Kaufpreis</th>
-                    <th>Aktueller Kurs</th>
-                    <th>Investiert</th>
-                    <th>Aktueller Wert</th>
-                    <th>Gewinn/Verlust</th>
-                    <th>Sparpläne</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in portfolio_data %}
-                <tr>
-                    <td>{{ item.position.ticker }}.{{ item.position.exchange_suffix }}</td>
-                    <td>{{ item.position.name }}</td>
-                    <td>{{ "%.4f"|format(item.position.shares) }}</td>
-                    <td>{{ "%.2f"|format(item.position.average_buy_price) }} €</td>
-                    <td>
-                        {% if item.position.current_price is not none %}
-                            {{ "%.2f"|format(item.position.current_price) }} €
-                            {% if item.position.manual_price_override %}
-                                <span title="Manuell überschrieben">(M)</span>
+<!-- Positionen -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-graph-up me-2"></i>Positionen</span>
+        <span class="badge bg-secondary">{{ portfolio_data|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if portfolio_data %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Name</th>
+                        <th class="text-end">Anteile</th>
+                        <th class="text-end">Ø Kaufpreis</th>
+                        <th class="text-end">Aktueller Kurs</th>
+                        <th class="text-end">Investiert</th>
+                        <th class="text-end">Aktueller Wert</th>
+                        <th class="text-end">Gewinn/Verlust</th>
+                        <th>Sparpläne</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in portfolio_data %}
+                    <tr>
+                        <td class="fw-medium" style="color: var(--text-primary);">{{ item.position.ticker }}.{{ item.position.exchange_suffix }}</td>
+                        <td>{{ item.position.name }}</td>
+                        <td class="text-end">{{ "%.4f"|format(item.position.shares) }}</td>
+                        <td class="text-end">{{ "%.2f"|format(item.position.average_buy_price) }} €</td>
+                        <td class="text-end">
+                            {% if item.position.current_price is not none %}
+                                {{ "%.2f"|format(item.position.current_price) }} €
+                                {% if item.position.manual_price_override %}
+                                    <span class="badge bg-secondary" title="Manuell überschrieben">M</span>
+                                {% endif %}
+                            {% else %}
+                                —
                             {% endif %}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                    <td>{{ "%.2f"|format(item.invested) }} €</td>
-                    <td>
-                        {% if item.current_value is not none %}
-                            {{ "%.2f"|format(item.current_value) }} €
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if item.gain_loss is not none %}
-                            <span class="{{ 'text-success' if item.gain_loss >= 0 else 'text-danger' }}">
-                                {{ "%+.2f"|format(item.gain_loss) }} €
-                                ({{ "%+.1f"|format(item.gain_loss_pct) }}%)
-                            </span>
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if item.position.savings_plans | length > 0 %}
-                            {{ item.position.savings_plans | selectattr('active') | list | length }} aktiv
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('etf.buy', id=item.position.id) }}">Kaufen</a>
-                        <a href="{{ url_for('etf.sell', id=item.position.id) }}">Verkaufen</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <section>
-            <h3>Zusammenfassung</h3>
-            <p>Gesamt investiert: {{ "%.2f"|format(total_invested) }} €</p>
-            <p>Aktueller Gesamtwert: {{ "%.2f"|format(total_value) }} €</p>
-            {% if total_invested > 0 %}
-                <p>Gesamt Gewinn/Verlust:
-                    <span class="{{ 'text-success' if (total_value - total_invested) >= 0 else 'text-danger' }}">
-                        {{ "%+.2f"|format(total_value - total_invested) }} €
-                        ({{ "%+.1f"|format((total_value - total_invested) / total_invested * 100) }}%)
-                    </span>
-                </p>
-            {% endif %}
-        </section>
-    {% else %}
-        <p>Keine ETF-Positionen vorhanden.</p>
-    {% endif %}
-</section>
+                        </td>
+                        <td class="text-end">{{ "%.2f"|format(item.invested) }} €</td>
+                        <td class="text-end">
+                            {% if item.current_value is not none %}
+                                {{ "%.2f"|format(item.current_value) }} €
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if item.gain_loss is not none %}
+                                <span class="{{ 'text-success' if item.gain_loss >= 0 else 'text-danger' }}">
+                                    {{ "%+.2f"|format(item.gain_loss) }} €
+                                    ({{ "%+.1f"|format(item.gain_loss_pct) }}%)
+                                </span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.position.savings_plans | length > 0 %}
+                                <span class="badge bg-success">{{ item.position.savings_plans | selectattr('active') | list | length }} aktiv</span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('etf.buy', id=item.position.id) }}" class="btn btn-secondary btn-sm me-1" title="Kaufen">
+                                <i class="bi bi-cart-plus"></i>
+                            </a>
+                            <a href="{{ url_for('etf.sell', id=item.position.id) }}" class="btn btn-danger btn-sm" title="Verkaufen">
+                                <i class="bi bi-cart-dash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-graph-up d-block"></i>
+            <p>Keine ETF-Positionen vorhanden.</p>
+            <a href="{{ url_for('etf.add_position') }}" class="btn btn-primary btn-sm">Position hinzufügen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

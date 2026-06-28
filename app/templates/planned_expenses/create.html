@@ -3,75 +3,90 @@
 {% block title %}Geplante Ausgabe erstellen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Neue geplante Ausgabe erstellen</h1>
-
-<form method="POST" action="{{ url_for('planned_expenses.create') }}" novalidate>
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.name.label }}
-        {{ form.name(size=50) }}
-        {% for error in form.name.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Neue geplante Ausgabe</h1>
+    <div class="actions">
+        <a href="{{ url_for('planned_expenses.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
     </div>
+</div>
 
-    <fieldset>
-        <legend>Betrag (optional — entweder genauer Betrag oder Bereich angeben)</legend>
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('planned_expenses.create') }}" novalidate>
+                    {{ form.hidden_tag() }}
 
-        <div>
-            {{ form.amount_exact.label }}
-            {{ form.amount_exact() }}
-            {% for error in form.amount_exact.errors %}
-                <span class="error">{{ error }}</span>
-            {% endfor %}
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="z.B. Waschmaschine") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <fieldset class="mb-3">
+                        <legend class="form-label" style="font-size: 1rem;">Betrag (optional — genauer Betrag oder Bereich)</legend>
+
+                        <div class="mb-3">
+                            {{ form.amount_exact.label(class="form-label") }}
+                            {{ form.amount_exact(class="form-control") }}
+                            {% for error in form.amount_exact.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.amount_min.label(class="form-label") }}
+                                {{ form.amount_min(class="form-control") }}
+                                {% for error in form.amount_min.errors %}
+                                    <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.amount_max.label(class="form-label") }}
+                                {{ form.amount_max(class="form-control") }}
+                                {% for error in form.amount_max.errors %}
+                                    <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.scope.label(class="form-label") }}
+                            {{ form.scope(class="form-select") }}
+                            {% for error in form.scope.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.account_id.label(class="form-label") }}
+                            {{ form.account_id(class="form-select") }}
+                            {% for error in form.account_id.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        {{ form.blocking(class="form-check-input") }}
+                        {{ form.blocking.label(class="form-check-label") }}
+                        {% for error in form.blocking.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <div>
-            {{ form.amount_min.label }}
-            {{ form.amount_min() }}
-            {% for error in form.amount_min.errors %}
-                <span class="error">{{ error }}</span>
-            {% endfor %}
-        </div>
-
-        <div>
-            {{ form.amount_max.label }}
-            {{ form.amount_max() }}
-            {% for error in form.amount_max.errors %}
-                <span class="error">{{ error }}</span>
-            {% endfor %}
-        </div>
-    </fieldset>
-
-    <div>
-        {{ form.scope.label }}
-        {{ form.scope() }}
-        {% for error in form.scope.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
     </div>
-
-    <div>
-        {{ form.account_id.label }}
-        {{ form.account_id() }}
-        {% for error in form.account_id.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.blocking() }}
-        {{ form.blocking.label }}
-        {% for error in form.blocking.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
-    </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('planned_expenses.index') }}">Zurück zur Übersicht</a></p>
+</div>
 {% endblock %}

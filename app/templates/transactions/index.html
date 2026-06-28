@@ -3,96 +3,126 @@
 {% block title %}Transaktionen — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Transaktionen</h1>
+<div class="page-header">
+    <h1><i class="bi bi-arrow-left-right me-2"></i>Transaktionen</h1>
+    <div class="actions">
+        <a href="{{ url_for('transactions.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Neue Transaktion
+        </a>
+    </div>
+</div>
 
-<a href="{{ url_for('transactions.create') }}">Neue Transaktion erstellen</a>
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center">
+        <span><i class="bi bi-funnel me-2"></i>Filter</span>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('transactions.index') }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="filter-type" class="form-label">Typ</label>
+                    <select id="filter-type" name="type" class="form-select">
+                        <option value="">— Alle —</option>
+                        <option value="income" {{ 'selected' if filter_type == 'income' }}>Einnahme</option>
+                        <option value="expense" {{ 'selected' if filter_type == 'expense' }}>Ausgabe</option>
+                        <option value="transfer" {{ 'selected' if filter_type == 'transfer' }}>Umbuchung</option>
+                        <option value="credit_card_payment" {{ 'selected' if filter_type == 'credit_card_payment' }}>Kreditkartenzahlung</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filter-date-from" class="form-label">Von</label>
+                    <input type="date" id="filter-date-from" name="date_from" value="{{ filter_date_from }}" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="filter-date-to" class="form-label">Bis</label>
+                    <input type="date" id="filter-date-to" name="date_to" value="{{ filter_date_to }}" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label for="filter-account" class="form-label">Konto</label>
+                    <select id="filter-account" name="account_id" class="form-select">
+                        <option value="">— Alle Konten —</option>
+                        {% for account in accounts %}
+                            <option value="{{ account.id }}" {{ 'selected' if filter_account_id == account.id|string }}>{{ account.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm">Filtern</button>
+                    <a href="{{ url_for('transactions.index') }}" class="btn btn-secondary btn-sm">Zurücksetzen</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
-<section>
-    <h2>Filter</h2>
-    <form method="GET" action="{{ url_for('transactions.index') }}">
-        <div>
-            <label for="filter-type">Typ</label>
-            <select id="filter-type" name="type">
-                <option value="">— Alle —</option>
-                <option value="income" {{ 'selected' if filter_type == 'income' }}>Einnahme</option>
-                <option value="expense" {{ 'selected' if filter_type == 'expense' }}>Ausgabe</option>
-                <option value="transfer" {{ 'selected' if filter_type == 'transfer' }}>Umbuchung</option>
-                <option value="credit_card_payment" {{ 'selected' if filter_type == 'credit_card_payment' }}>Kreditkartenzahlung</option>
-            </select>
+<!-- Transaktionen -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-arrow-left-right me-2"></i>Übersicht</span>
+        <span class="badge bg-secondary">{{ transactions|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if transactions %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Typ</th>
+                        <th class="text-end">Betrag</th>
+                        <th>Konto</th>
+                        <th>Zielkonto</th>
+                        <th>Zuordnung</th>
+                        <th>Beschreibung</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td>{{ txn.date.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            {% if txn.type.value == 'income' %}
+                                <span class="badge bg-success">Einnahme</span>
+                            {% elif txn.type.value == 'expense' %}
+                                <span class="badge bg-danger">Ausgabe</span>
+                            {% elif txn.type.value == 'transfer' %}
+                                <span class="badge bg-secondary">Umbuchung</span>
+                            {% elif txn.type.value == 'credit_card_payment' %}
+                                <span class="badge bg-secondary">Kreditkartenzahlung</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-medium {{ 'text-success' if txn.type.value == 'income' else 'text-danger' }}">
+                            {{ "%.2f"|format(txn.amount) }} €
+                        </td>
+                        <td>{{ txn.account.name if txn.account else "—" }}</td>
+                        <td>{{ txn.destination_account.name if txn.destination_account else "—" }}</td>
+                        <td>{{ "Persönlich" if txn.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td>{{ txn.description or "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('transactions.edit', id=txn.id) }}" class="btn btn-secondary btn-sm me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('transactions.delete', id=txn.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Transaktion wirklich löschen?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-
-        <div>
-            <label for="filter-date-from">Von</label>
-            <input type="date" id="filter-date-from" name="date_from" value="{{ filter_date_from }}">
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-arrow-left-right d-block"></i>
+            <p>Keine Transaktionen vorhanden.</p>
+            <a href="{{ url_for('transactions.create') }}" class="btn btn-primary btn-sm">Transaktion erstellen</a>
         </div>
-
-        <div>
-            <label for="filter-date-to">Bis</label>
-            <input type="date" id="filter-date-to" name="date_to" value="{{ filter_date_to }}">
-        </div>
-
-        <div>
-            <label for="filter-account">Konto</label>
-            <select id="filter-account" name="account_id">
-                <option value="">— Alle Konten —</option>
-                {% for account in accounts %}
-                    <option value="{{ account.id }}" {{ 'selected' if filter_account_id == account.id|string }}>{{ account.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div>
-            <button type="submit">Filtern</button>
-            <a href="{{ url_for('transactions.index') }}">Zurücksetzen</a>
-        </div>
-    </form>
-</section>
-
-<section>
-    <h2>Übersicht</h2>
-    {% if transactions %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Datum</th>
-                    <th>Typ</th>
-                    <th>Betrag</th>
-                    <th>Konto</th>
-                    <th>Zielkonto</th>
-                    <th>Zuordnung</th>
-                    <th>Beschreibung</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for txn in transactions %}
-                <tr>
-                    <td>{{ txn.date.strftime('%d.%m.%Y') }}</td>
-                    <td>
-                        {% if txn.type.value == 'income' %}Einnahme
-                        {% elif txn.type.value == 'expense' %}Ausgabe
-                        {% elif txn.type.value == 'transfer' %}Umbuchung
-                        {% elif txn.type.value == 'credit_card_payment' %}Kreditkartenzahlung
-                        {% endif %}
-                    </td>
-                    <td>{{ "%.2f"|format(txn.amount) }} €</td>
-                    <td>{{ txn.account.name if txn.account else "—" }}</td>
-                    <td>{{ txn.destination_account.name if txn.destination_account else "—" }}</td>
-                    <td>{{ "Persönlich" if txn.scope.value == "personal" else "Gemeinsam" }}</td>
-                    <td>{{ txn.description or "—" }}</td>
-                    <td>
-                        <a href="{{ url_for('transactions.edit', id=txn.id) }}">Bearbeiten</a>
-                        <form method="POST" action="{{ url_for('transactions.delete', id=txn.id) }}" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" onclick="return confirm('Transaktion wirklich löschen?')">Löschen</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Keine Transaktionen vorhanden.</p>
-    {% endif %}
-</section>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

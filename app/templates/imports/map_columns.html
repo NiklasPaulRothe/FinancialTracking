@@ -3,120 +3,141 @@
 {% block title %}CSV-Import: Spaltenzuordnung — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>CSV-Import: Spaltenzuordnung</h1>
+<div class="page-header">
+    <h1><i class="bi bi-upload me-2"></i>Spaltenzuordnung</h1>
+    <div class="actions">
+        <a href="{{ url_for('imports.upload') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+    </div>
+</div>
 
-<p>Ordnen Sie die Spalten Ihrer CSV-Datei den erforderlichen Feldern zu.</p>
+<p class="text-muted mb-4">Ordnen Sie die Spalten Ihrer CSV-Datei den erforderlichen Feldern zu.</p>
 
 {% if sample_rows %}
-<h2>Vorschau der ersten Zeilen</h2>
-<table border="1" cellpadding="4" cellspacing="0">
-    <thead>
-        <tr>
-            {% for header in headers %}
-                <th>Spalte {{ loop.index0 }}: {{ header }}</th>
-            {% endfor %}
-        </tr>
-    </thead>
-    <tbody>
-        {% for row in sample_rows %}
-            <tr>
-                {% for cell in row %}
-                    <td>{{ cell }}</td>
-                {% endfor %}
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- Vorschau -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center">
+        <span><i class="bi bi-table me-2"></i>Vorschau der ersten Zeilen</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        {% for header in headers %}
+                            <th>Spalte {{ loop.index0 }}: {{ header }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in sample_rows %}
+                    <tr>
+                        {% for cell in row %}
+                            <td>{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endif %}
 
-<form method="POST" action="{{ url_for('imports.map_columns') }}" novalidate>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<!-- Zuordnungsformular -->
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('imports.map_columns') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <fieldset>
-        <legend>Spaltenzuordnung</legend>
+                    <h5 class="mb-3"><i class="bi bi-columns-gap me-2"></i>Spaltenzuordnung</h5>
 
-        <div>
-            <label for="date_column">Datum-Spalte (Index, ab 0)</label>
-            <select name="date_column" id="date_column" required>
-                {% for i in range(num_columns) %}
-                    <option value="{{ i }}">Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
-                {% endfor %}
-            </select>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="date_column" class="form-label">Datum-Spalte</label>
+                            <select name="date_column" id="date_column" class="form-select" required>
+                                {% for i in range(num_columns) %}
+                                    <option value="{{ i }}">Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="amount_column" class="form-label">Betrag-Spalte</label>
+                            <select name="amount_column" id="amount_column" class="form-select" required>
+                                {% for i in range(num_columns) %}
+                                    <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="description_column" class="form-label">Beschreibung-Spalte</label>
+                            <select name="description_column" id="description_column" class="form-select">
+                                <option value="">— Keine —</option>
+                                {% for i in range(num_columns) %}
+                                    <option value="{{ i }}">Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4"><i class="bi bi-gear me-2"></i>Formateinstellungen</h5>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="date_format" class="form-label">Datumsformat</label>
+                            <select name="date_format" id="date_format" class="form-select" required>
+                                <option value="%d.%m.%Y">TT.MM.JJJJ (z.B. 01.12.2024)</option>
+                                <option value="%Y-%m-%d">JJJJ-MM-TT (z.B. 2024-12-01)</option>
+                                <option value="%d/%m/%Y">TT/MM/JJJJ (z.B. 01/12/2024)</option>
+                                <option value="%m/%d/%Y">MM/TT/JJJJ (z.B. 12/01/2024)</option>
+                                <option value="%d-%m-%Y">TT-MM-JJJJ (z.B. 01-12-2024)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="delimiter" class="form-label">Trennzeichen</label>
+                            <select name="delimiter" id="delimiter" class="form-select" required>
+                                <option value=";">Semikolon (;)</option>
+                                <option value=",">Komma (,)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="decimal_separator" class="form-label">Dezimaltrennzeichen</label>
+                            <select name="decimal_separator" id="decimal_separator" class="form-select" required>
+                                <option value=",">Komma (1.234,56)</option>
+                                <option value=".">Punkt (1,234.56)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="encoding" class="form-label">Zeichenkodierung</label>
+                            <select name="encoding" id="encoding" class="form-select" required>
+                                <option value="utf-8">UTF-8</option>
+                                <option value="iso-8859-1">ISO-8859-1 (Latin-1)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4"><i class="bi bi-bank me-2"></i>Bankbezeichnung (optional)</h5>
+
+                    <div class="mb-4">
+                        <label for="bank_name" class="form-label">Bankname</label>
+                        <input type="text" name="bank_name" id="bank_name" class="form-control" maxlength="100" placeholder="z.B. Sparkasse, ING, DKB">
+                        <small class="text-muted">Ermöglicht verschiedene Zuordnungen pro Bank für dasselbe Konto.</small>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-lg me-2"></i>Zuordnung speichern und Vorschau anzeigen
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <div>
-            <label for="amount_column">Betrag-Spalte (Index, ab 0)</label>
-            <select name="amount_column" id="amount_column" required>
-                {% for i in range(num_columns) %}
-                    <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div>
-            <label for="description_column">Beschreibung-Spalte (optional)</label>
-            <select name="description_column" id="description_column">
-                <option value="">— Keine —</option>
-                {% for i in range(num_columns) %}
-                    <option value="{{ i }}">Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
-                {% endfor %}
-            </select>
-        </div>
-    </fieldset>
-
-    <fieldset>
-        <legend>Formateinstellungen</legend>
-
-        <div>
-            <label for="date_format">Datumsformat</label>
-            <select name="date_format" id="date_format" required>
-                <option value="%d.%m.%Y">TT.MM.JJJJ (z.B. 01.12.2024)</option>
-                <option value="%Y-%m-%d">JJJJ-MM-TT (z.B. 2024-12-01)</option>
-                <option value="%d/%m/%Y">TT/MM/JJJJ (z.B. 01/12/2024)</option>
-                <option value="%m/%d/%Y">MM/TT/JJJJ (z.B. 12/01/2024)</option>
-                <option value="%d-%m-%Y">TT-MM-JJJJ (z.B. 01-12-2024)</option>
-            </select>
-        </div>
-
-        <div>
-            <label for="delimiter">Trennzeichen</label>
-            <select name="delimiter" id="delimiter" required>
-                <option value=";">Semikolon (;)</option>
-                <option value=",">Komma (,)</option>
-            </select>
-        </div>
-
-        <div>
-            <label for="decimal_separator">Dezimaltrennzeichen</label>
-            <select name="decimal_separator" id="decimal_separator" required>
-                <option value=",">Komma (1.234,56)</option>
-                <option value=".">Punkt (1,234.56)</option>
-            </select>
-        </div>
-
-        <div>
-            <label for="encoding">Zeichenkodierung</label>
-            <select name="encoding" id="encoding" required>
-                <option value="utf-8">UTF-8</option>
-                <option value="iso-8859-1">ISO-8859-1 (Latin-1)</option>
-            </select>
-        </div>
-    </fieldset>
-
-    <fieldset>
-        <legend>Bankbezeichnung (optional)</legend>
-
-        <div>
-            <label for="bank_name">Bankname</label>
-            <input type="text" name="bank_name" id="bank_name" maxlength="100" placeholder="z.B. Sparkasse, ING, DKB">
-            <small>Ermöglicht verschiedene Zuordnungen pro Bank für dasselbe Konto.</small>
-        </div>
-    </fieldset>
-
-    <div>
-        <button type="submit">Zuordnung speichern und Vorschau anzeigen</button>
     </div>
-</form>
-
-<p><a href="{{ url_for('imports.upload') }}">Zurück zur Dateiauswahl</a></p>
+</div>
 {% endblock %}

@@ -64,6 +64,12 @@ class AccountCreateForm(FlaskForm):
             Length(max=100, message="Institut darf maximal 100 Zeichen lang sein."),
         ],
     )
+    starting_balance = DecimalField(
+        "Startsaldo",
+        validators=[Optional()],
+        places=2,
+        default=Decimal("0.00"),
+    )
     visible_to_partner = BooleanField("Für Partner sichtbar", default=True)
     max_overdraft = DecimalField(
         "Maximaler Überziehungsrahmen",
@@ -181,6 +187,11 @@ class AccountEditForm(FlaskForm):
         validators=[
             Length(max=100, message="Institut darf maximal 100 Zeichen lang sein."),
         ],
+    )
+    starting_balance = DecimalField(
+        "Startsaldo",
+        validators=[Optional()],
+        places=2,
     )
     visible_to_partner = BooleanField("Für Partner sichtbar", default=True)
     credit_limit = DecimalField(

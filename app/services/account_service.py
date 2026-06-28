@@ -47,7 +47,8 @@ class AccountService:
             name=name,
             type=type if isinstance(type, AccountType) else AccountType(type),
             scope=scope if isinstance(scope, AccountScope) else AccountScope(scope),
-            balance=Decimal("0.0"),
+            starting_balance=kwargs.get("starting_balance", Decimal("0.0")),
+            balance=kwargs.get("starting_balance", Decimal("0.0")),
             active=True,
             visible_to_partner=kwargs.get("visible_to_partner", True),
             institute=kwargs.get("institute"),
@@ -119,8 +120,17 @@ class AccountService:
                 "payment_due_day",
             })
 
+        # Handle starting_balance change — adjust current balance by the delta
+        if "starting_balance" in updates and updates["starting_balance"] is not None:
+            new_starting = Decimal(str(updates["starting_balance"]))
+            old_starting = account.starting_balance or Decimal("0.0")
+            delta = new_starting - old_starting
+            account.starting_balance = new_starting
+            account.balance = account.balance + delta
+            allowed_fields.add("starting_balance")
+
         for field, value in updates.items():
-            if field in allowed_fields:
+            if field in allowed_fields and field != "starting_balance":
                 setattr(account, field, value)
 
         # Audit log (Req 22.1)
