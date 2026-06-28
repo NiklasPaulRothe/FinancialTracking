@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}VL-Vertrag anlegen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Neuen VL-Vertrag anlegen</h1>
+
+<form method="POST" action="{{ url_for('vl.create') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.employer_contribution_monthly.label }}
+        {{ form.employer_contribution_monthly() }}
+        {% for error in form.employer_contribution_monthly.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.employee_contribution_monthly.label }}
+        {{ form.employee_contribution_monthly() }}
+        <small>Optional — eigener Aufstockungsbetrag zusätzlich zum Arbeitgeber-Anteil.</small>
+        {% for error in form.employee_contribution_monthly.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.start_date.label }}
+        {{ form.start_date() }}
+        {% for error in form.start_date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.lock_up_end_date.label }}
+        {{ form.lock_up_end_date() }}
+        <small>Datum, an dem die Sperrfrist endet und Mittel verfügbar werden.</small>
+        {% for error in form.lock_up_end_date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.etf_position_id.label }}
+        {{ form.etf_position_id() }}
+        <small>Wenn die VL in einen ETF-Sparplan fließen, hier die Position wählen.</small>
+        {% for error in form.etf_position_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.sparzulage_rate.label }}
+        {{ form.sparzulage_rate() }}
+        <small>Dezimalwert, z.B. 0.20 für 20% Arbeitnehmer-Sparzulage.</small>
+        {% for error in form.sparzulage_rate.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.annual_eligible_max.label }}
+        {{ form.annual_eligible_max() }}
+        <small>Maximal förderfähiger Betrag pro Jahr (Standard: 400,00 €).</small>
+        {% for error in form.annual_eligible_max.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('vl.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}

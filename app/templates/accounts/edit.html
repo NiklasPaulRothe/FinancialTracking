@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Konto bearbeiten — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Konto bearbeiten: {{ account.name }}</h1>
+
+<form method="POST" action="{{ url_for('accounts.edit', id=account.id) }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.name.label }}
+        {{ form.name(size=50) }}
+        {% for error in form.name.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.institute.label }}
+        {{ form.institute(size=50) }}
+        {% for error in form.institute.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.visible_to_partner() }} {{ form.visible_to_partner.label }}
+    </div>
+
+    {% if is_credit_card %}
+    <fieldset>
+        <legend>Kreditkarten-Details</legend>
+
+        <div>
+            {{ form.credit_limit.label }}
+            {{ form.credit_limit() }}
+            {% for error in form.credit_limit.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.statement_closing_day.label }}
+            {{ form.statement_closing_day() }}
+            {% for error in form.statement_closing_day.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.payment_due_day.label }}
+            {{ form.payment_due_day() }}
+            {% for error in form.payment_due_day.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+    </fieldset>
+    {% endif %}
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('accounts.index') }}">Zurück zur Kontenübersicht</a></p>
+{% endblock %}

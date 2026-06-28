@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}CSV-Import: Vorschau — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>CSV-Import: Vorschau</h1>
+
+<h2>Zusammenfassung</h2>
+<p>
+    Konto: <strong>{{ account.name }}</strong> |
+    Gesamt: <strong>{{ parse_result.total_rows }}</strong> Zeilen |
+    Gültig: <strong>{{ parse_result.valid_rows }}</strong> |
+    Fehler: <strong>{{ parse_result.error_rows }}</strong> |
+    Duplikate: <strong>{{ parse_result.duplicate_rows }}</strong>
+</p>
+
+{% if parse_result.error_rows > 0 %}
+<div class="alert alert-warning" role="alert">
+    <strong>Hinweis:</strong> {{ parse_result.error_rows }} Zeile(n) enthalten Fehler und werden beim Import übersprungen.
+</div>
+{% endif %}
+
+{% if parse_result.duplicate_rows > 0 %}
+<div class="alert alert-info" role="alert">
+    <strong>Hinweis:</strong> {{ parse_result.duplicate_rows }} mögliche Duplikat(e) erkannt (gleiche(s) Datum + Betrag + Konto).
+    Diese werden standardmäßig übersprungen.
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('imports.confirm') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="skip_duplicates" value="true">
+
+    <table border="1" cellpadding="4" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Zeile</th>
+                <th>Datum</th>
+                <th>Betrag</th>
+                <th>Typ</th>
+                <th>Beschreibung</th>
+                <th>Status</th>
+                <th>Trotzdem importieren</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in parse_result.rows %}
+            <tr {% if row.error %}style="background-color: #ffcccc;"{% elif row.is_duplicate %}style="background-color: #fff3cd;"{% endif %}>
+                <td>{{ row.row_number }}</td>
+                <td>{{ row.date if row.date else "—" }}</td>
+                <td>{{ row.amount if row.amount else "—" }}{% if row.raw_amount and not row.amount %} ({{ row.raw_amount }}){% endif %}</td>
+                <td>
+                    {% if row.transaction_type == "income" %}
+                        Einnahme
+                    {% elif row.transaction_type == "expense" %}
+                        Ausgabe
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>{{ row.description if row.description else "—" }}</td>
+                <td>
+                    {% if row.error %}
+                        <span style="color: red;" title="{{ row.error }}">Fehler</span>
+                    {% elif row.is_duplicate %}
+                        <span style="color: orange;">Duplikat</span>
+                    {% else %}
+                        <span style="color: green;">OK</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.is_duplicate %}
+                        <input type="checkbox" name="override_row_{{ row.row_number }}" value="1">
+                    {% elif row.error %}
+                        —
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 1em;">
+        <button type="submit">Import bestätigen</button>
+    </div>
+</form>
+
+<form method="POST" action="{{ url_for('imports.preview') }}" style="display: inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="remap">
+    <button type="submit">Spaltenzuordnung ändern</button>
+</form>
+
+<p><a href="{{ url_for('imports.upload') }}">Neuen Import starten</a></p>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Kredite — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Kredite</h1>
+
+<a href="{{ url_for('credits.create') }}">Neuen Kredit erstellen</a>
+
+<section>
+    <h2>Aktive Kredite</h2>
+    {% if active_credits %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Zuordnung</th>
+                    <th>Restschuld</th>
+                    <th>Aufgelaufene Zinsen</th>
+                    <th>Effektiver Jahreszins</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for credit in active_credits %}
+                <tr>
+                    <td><a href="{{ url_for('credits.detail', id=credit.id) }}">{{ credit.name }}</a></td>
+                    <td>{{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</td>
+                    <td>{{ "%.2f"|format(credit.remaining_balance) }} €</td>
+                    <td>{{ "%.2f"|format(credit.accrued_interest) }} €</td>
+                    <td>{{ "%.2f"|format(credit.effective_yearly_rate * 100) }} %</td>
+                    <td><span class="badge-active">Aktiv</span></td>
+                    <td>
+                        <a href="{{ url_for('credits.repay', id=credit.id) }}">Rückzahlung</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine aktiven Kredite vorhanden.</p>
+    {% endif %}
+</section>
+
+{% if paid_off_credits %}
+<section>
+    <h2>Getilgte Kredite</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Zuordnung</th>
+                <th>Ursprünglicher Betrag</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for credit in paid_off_credits %}
+            <tr>
+                <td><a href="{{ url_for('credits.detail', id=credit.id) }}">{{ credit.name }}</a></td>
+                <td>{{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</td>
+                <td>{{ "%.2f"|format(credit.principal) }} €</td>
+                <td><span class="badge-completed">Getilgt</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+{% endblock %}

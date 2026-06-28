@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Vermögensentwicklung – Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Vermögensentwicklung</h1>
+
+<!-- Datumsfilter -->
+<form method="get" action="{{ url_for('reports.networth') }}" class="mb-4">
+    <div class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label for="start" class="form-label">Von</label>
+            <input type="date" id="start" name="start" class="form-control"
+                   value="{{ start_date.isoformat() }}">
+        </div>
+        <div class="col-auto">
+            <label for="end" class="form-label">Bis</label>
+            <input type="date" id="end" name="end" class="form-control"
+                   value="{{ end_date.isoformat() }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filtern</button>
+        </div>
+    </div>
+</form>
+
+<p class="text-muted">Zeitraum: {{ start_date.strftime('%d.%m.%Y') }} – {{ end_date.strftime('%d.%m.%Y') }}</p>
+
+<!-- Aktueller Vermögenswert -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Aktuelles Nettovermögen</h5>
+        <p class="card-text fs-3">{{ "%.2f"|format(current_net_worth|float) }} €</p>
+    </div>
+</div>
+
+{% if not has_sufficient_data %}
+<div class="alert alert-info" role="alert">
+    Die Vermögenshistorie ist noch nicht verfügbar. Es werden mindestens 2 Datenpunkte benötigt.
+</div>
+{% endif %}
+
+<!-- Vermögensverlauf Chart -->
+{% if chart_data %}
+<h2>Vermögensverlauf</h2>
+<div id="networth-chart" data-chart='{{ chart_data | tojson }}' style="min-height: 300px;">
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Datum</th>
+                <th>Vermögen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for point in chart_data[:30] %}
+            <tr>
+                <td>{{ point.date }}</td>
+                <td>{{ "%.2f"|format(point.value) }} €</td>
+            </tr>
+            {% endfor %}
+            {% if chart_data|length > 30 %}
+            <tr>
+                <td colspan="2" class="text-muted">... {{ chart_data|length - 30 }} weitere Einträge</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Projektionen -->
+{% if projections %}
+<h2>Vermögensprognose</h2>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Zeitraum</th>
+                <th>Projiziertes Vermögen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for proj in projections %}
+            <tr>
+                <td>{{ proj.label }}</td>
+                <td>{{ "%.2f"|format(proj.projected_value) }} €</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}

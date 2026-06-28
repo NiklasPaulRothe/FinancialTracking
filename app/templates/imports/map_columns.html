@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}CSV-Import: Spaltenzuordnung — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>CSV-Import: Spaltenzuordnung</h1>
+
+<p>Ordnen Sie die Spalten Ihrer CSV-Datei den erforderlichen Feldern zu.</p>
+
+{% if sample_rows %}
+<h2>Vorschau der ersten Zeilen</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <thead>
+        <tr>
+            {% for header in headers %}
+                <th>Spalte {{ loop.index0 }}: {{ header }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in sample_rows %}
+            <tr>
+                {% for cell in row %}
+                    <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<form method="POST" action="{{ url_for('imports.map_columns') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <fieldset>
+        <legend>Spaltenzuordnung</legend>
+
+        <div>
+            <label for="date_column">Datum-Spalte (Index, ab 0)</label>
+            <select name="date_column" id="date_column" required>
+                {% for i in range(num_columns) %}
+                    <option value="{{ i }}">Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="amount_column">Betrag-Spalte (Index, ab 0)</label>
+            <select name="amount_column" id="amount_column" required>
+                {% for i in range(num_columns) %}
+                    <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="description_column">Beschreibung-Spalte (optional)</label>
+            <select name="description_column" id="description_column">
+                <option value="">— Keine —</option>
+                {% for i in range(num_columns) %}
+                    <option value="{{ i }}">Spalte {{ i }}{% if headers and i < headers|length %}: {{ headers[i] }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Formateinstellungen</legend>
+
+        <div>
+            <label for="date_format">Datumsformat</label>
+            <select name="date_format" id="date_format" required>
+                <option value="%d.%m.%Y">TT.MM.JJJJ (z.B. 01.12.2024)</option>
+                <option value="%Y-%m-%d">JJJJ-MM-TT (z.B. 2024-12-01)</option>
+                <option value="%d/%m/%Y">TT/MM/JJJJ (z.B. 01/12/2024)</option>
+                <option value="%m/%d/%Y">MM/TT/JJJJ (z.B. 12/01/2024)</option>
+                <option value="%d-%m-%Y">TT-MM-JJJJ (z.B. 01-12-2024)</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="delimiter">Trennzeichen</label>
+            <select name="delimiter" id="delimiter" required>
+                <option value=";">Semikolon (;)</option>
+                <option value=",">Komma (,)</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="decimal_separator">Dezimaltrennzeichen</label>
+            <select name="decimal_separator" id="decimal_separator" required>
+                <option value=",">Komma (1.234,56)</option>
+                <option value=".">Punkt (1,234.56)</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="encoding">Zeichenkodierung</label>
+            <select name="encoding" id="encoding" required>
+                <option value="utf-8">UTF-8</option>
+                <option value="iso-8859-1">ISO-8859-1 (Latin-1)</option>
+            </select>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Bankbezeichnung (optional)</legend>
+
+        <div>
+            <label for="bank_name">Bankname</label>
+            <input type="text" name="bank_name" id="bank_name" maxlength="100" placeholder="z.B. Sparkasse, ING, DKB">
+            <small>Ermöglicht verschiedene Zuordnungen pro Bank für dasselbe Konto.</small>
+        </div>
+    </fieldset>
+
+    <div>
+        <button type="submit">Zuordnung speichern und Vorschau anzeigen</button>
+    </div>
+</form>
+
+<p><a href="{{ url_for('imports.upload') }}">Zurück zur Dateiauswahl</a></p>
+{% endblock %}

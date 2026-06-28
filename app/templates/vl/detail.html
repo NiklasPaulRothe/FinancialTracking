@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}VL-Vertrag — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>VL-Vertrag</h1>
+
+<div class="contract-detail">
+    <p><strong>Status:</strong>
+        {% if contract.active %}
+            <span class="badge-active">Aktiv</span>
+        {% else %}
+            <span class="badge-inactive">Inaktiv</span>
+        {% endif %}
+    </p>
+    <p><strong>Vertragsbeginn:</strong> {{ contract.start_date.strftime("%d.%m.%Y") }}</p>
+    <p><strong>Arbeitgeber-Beitrag (monatlich):</strong> {{ "%.2f"|format(contract.employer_contribution_monthly) }} €</p>
+    <p><strong>Arbeitnehmer-Beitrag (monatlich):</strong> {{ "%.2f"|format(contract.employee_contribution_monthly) }} €</p>
+    <p><strong>Gesamtbeitrag (monatlich):</strong> {{ "%.2f"|format(contract.total_contribution_monthly) }} €</p>
+
+    <h3>Sperrfrist</h3>
+    <p><strong>Sperrfrist bis:</strong> {{ contract.lock_up_end_date.strftime("%d.%m.%Y") }}</p>
+    <p>
+        {% if lock_up_active %}
+            <span class="badge-locked">Sperrfrist aktiv</span> — Mittel sind bis {{ contract.lock_up_end_date.strftime("%d.%m.%Y") }} gebunden.
+        {% else %}
+            <span class="badge-unlocked">Sperrfrist abgelaufen</span> — Mittel sind verfügbar.
+        {% endif %}
+    </p>
+
+    <h3>Förderung</h3>
+    <p><strong>Arbeitnehmer-Sparzulage:</strong> {{ "%.1f"|format(contract.sparzulage_rate * 100) }} %</p>
+    <p><strong>Max. förderfähiger Jahresbetrag:</strong> {{ "%.2f"|format(contract.annual_eligible_max) }} €</p>
+
+    {% if contract.etf_position %}
+    <h3>Verknüpfte ETF-Position</h3>
+    <p><strong>ETF:</strong> {{ contract.etf_position.name }} ({{ contract.etf_position.ticker }}.{{ contract.etf_position.exchange_suffix }})</p>
+    <p><strong>Aktuelle Anteile:</strong> {{ "%.6f"|format(contract.etf_position.shares) }}</p>
+    {% if contract.etf_position.current_price %}
+    <p><strong>Aktueller Kurs:</strong> {{ "%.2f"|format(contract.etf_position.current_price) }} €</p>
+    {% endif %}
+    {% endif %}
+</div>
+
+<section>
+    <h2>Beitragshistorie</h2>
+    {% if contributions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Monat</th>
+                    <th>Betrag</th>
+                    <th>ETF-Transaktion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in contributions %}
+                <tr>
+                    <td>{{ log.month.strftime("%m/%Y") }}</td>
+                    <td>{{ "%.2f"|format(log.amount) }} €</td>
+                    <td>
+                        {% if log.etf_transaction_id %}
+                            Ja (ID: {{ log.etf_transaction_id }})
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Noch keine Beiträge verbucht.</p>
+    {% endif %}
+</section>
+
+<p><a href="{{ url_for('vl.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}

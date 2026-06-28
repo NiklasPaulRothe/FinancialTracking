@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Dauerauftrag erstellen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Neuen Dauerauftrag erstellen</h1>
+
+<form method="POST" action="{{ url_for('recurring.create') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.name.label }}
+        {{ form.name(size=50) }}
+        {% for error in form.name.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.type.label }}
+        {{ form.type() }}
+        {% for error in form.type.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.frequency.label }}
+        {{ form.frequency() }}
+        {% for error in form.frequency.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.interval.label }}
+        {{ form.interval() }}
+        {% for error in form.interval.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.amount.label }}
+        {{ form.amount() }}
+        {% for error in form.amount.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.next_due_date.label }}
+        {{ form.next_due_date() }}
+        {% for error in form.next_due_date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.account_id.label }}
+        {{ form.account_id() }}
+        {% for error in form.account_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.destination_account_id.label }}
+        {{ form.destination_account_id() }}
+        {% for error in form.destination_account_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.scope.label }}
+        {{ form.scope() }}
+        {% for error in form.scope.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.category_id.label }}
+        {{ form.category_id() }}
+        {% for error in form.category_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('recurring.index') }}">Zurück zur Dauerauftragsübersicht</a></p>
+{% endblock %}

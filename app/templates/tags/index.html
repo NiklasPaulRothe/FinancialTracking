@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Tags – Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Tags verwalten</h2>
+
+    {# Create form #}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Neuen Tag erstellen</h5>
+            <form method="POST" action="{{ url_for('tags.create') }}" class="row g-3">
+                <div class="col-md-8">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="name" name="name"
+                           maxlength="30" required placeholder="Tag-Name">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Tag list #}
+    {% if tags %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tag in tags %}
+                <tr>
+                    <td><span class="badge bg-secondary">{{ tag.name }}</span></td>
+                    <td>
+                        <form method="POST" action="{{ url_for('tags.delete', id=tag.id) }}"
+                              onsubmit="return confirm('Tag wirklich löschen? Die Zuordnung zu Transaktionen wird entfernt.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">Keine Tags vorhanden. Erstellen Sie Ihren ersten Tag oben.</p>
+    {% endif %}
+</div>
+{% endblock %}

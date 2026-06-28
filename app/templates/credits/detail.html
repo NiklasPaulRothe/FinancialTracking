@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Kredit: {{ credit.name }} — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Kredit: {{ credit.name }}</h1>
+
+<div class="credit-detail">
+    <p><strong>Zuordnung:</strong> {{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</p>
+    <p><strong>Status:</strong>
+        {% if credit.status.value == "active" %}
+            <span class="badge-active">Aktiv</span>
+        {% else %}
+            <span class="badge-completed">Getilgt</span>
+        {% endif %}
+    </p>
+    <p><strong>Darlehensbetrag:</strong> {{ "%.2f"|format(credit.principal) }} €</p>
+    <p><strong>Restschuld:</strong> {{ "%.2f"|format(credit.remaining_balance) }} €</p>
+    <p><strong>Aufgelaufene Zinsen:</strong> {{ "%.2f"|format(credit.accrued_interest) }} €</p>
+    <p><strong>Effektiver Jahreszins:</strong> {{ "%.2f"|format(credit.effective_yearly_rate * 100) }} %</p>
+    <p><strong>Auszahlungsdatum:</strong> {{ credit.disbursement_date.strftime("%d.%m.%Y") }}</p>
+    <p><strong>Zinskapitalisierungstag:</strong> {{ credit.interest_capitalization_day }}. des Monats</p>
+    <p><strong>Verknüpftes Konto:</strong> {{ credit.account.name if credit.account else "—" }}</p>
+</div>
+
+{% if credit.status.value == "active" %}
+<section>
+    <h2>Rückzahlung buchen</h2>
+    <form method="POST" action="{{ url_for('credits.repay', id=credit.id) }}" novalidate>
+        {{ repay_form.hidden_tag() }}
+
+        <div>
+            {{ repay_form.amount.label }}
+            {{ repay_form.amount() }}
+            {% for error in repay_form.amount.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ repay_form.submit() }}
+        </div>
+    </form>
+</section>
+{% endif %}
+
+<section>
+    <h2>Zahlungshistorie</h2>
+    {% if credit.payments %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Gesamtbetrag</th>
+                    <th>Zinsanteil</th>
+                    <th>Tilgungsanteil</th>
+                    <th>Manuelle Korrektur</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in credit.payments %}
+                <tr>
+                    <td>{{ payment.created_at.strftime("%d.%m.%Y") }}</td>
+                    <td>{{ "%.2f"|format(payment.total_amount) }} €</td>
+                    <td>{{ "%.2f"|format(payment.interest_portion) }} €</td>
+                    <td>{{ "%.2f"|format(payment.principal_portion) }} €</td>
+                    <td>{{ "Ja" if payment.manual_correction else "Nein" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Noch keine Zahlungen vorhanden.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Prognose</h2>
+    {% if forecast %}
+        <div id="forecast-chart">
+            <canvas id="creditForecastChart" width="800" height="300"></canvas>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var canvas = document.getElementById('creditForecastChart');
+                if (!canvas || !canvas.getContext) return;
+
+                var ctx = canvas.getContext('2d');
+                var data = [
+                    {% for entry in forecast[:24] %}
+                    { month: {{ entry.month_offset }}, balance: {{ entry.projected_balance }}, interest: {{ entry.projected_interest }} }{{ "," if not loop.last }}
+                    {% endfor %}
+                ];
+
+                if (data.length === 0) return;
+
+                var maxBalance = Math.max.apply(null, data.map(function(d) { return d.balance; }));
+                var chartWidth = canvas.width - 80;
+                var chartHeight = canvas.height - 60;
+                var barWidth = chartWidth / data.length;
+
+                // Draw axes
+                ctx.strokeStyle = '#333';
+                ctx.beginPath();
+                ctx.moveTo(60, 10);
+                ctx.lineTo(60, chartHeight + 10);
+                ctx.lineTo(canvas.width - 10, chartHeight + 10);
+                ctx.stroke();
+
+                // Draw bars (projected balance)
+                ctx.fillStyle = '#4a90d9';
+                for (var i = 0; i < data.length; i++) {
+                    var barHeight = (data[i].balance / maxBalance) * chartHeight;
+                    var x = 60 + i * barWidth + 2;
+                    var y = chartHeight + 10 - barHeight;
+                    ctx.fillRect(x, y, barWidth - 4, barHeight);
+                }
+
+                // Draw labels
+                ctx.fillStyle = '#333';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                for (var i = 0; i < data.length; i += 3) {
+                    var x = 60 + i * barWidth + barWidth / 2;
+                    ctx.fillText('M' + data[i].month, x, chartHeight + 28);
+                }
+
+                // Y-axis labels
+                ctx.textAlign = 'right';
+                ctx.fillText(maxBalance.toFixed(0) + ' €', 55, 18);
+                ctx.fillText('0 €', 55, chartHeight + 10);
+
+                // Title
+                ctx.textAlign = 'center';
+                ctx.font = '13px sans-serif';
+                ctx.fillText('Prognostizierte Restschuld (nächste 24 Monate)', canvas.width / 2, canvas.height - 5);
+            });
+        </script>
+
+        <details>
+            <summary>Prognosedaten anzeigen</summary>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Monat</th>
+                        <th>Prognostizierte Restschuld</th>
+                        <th>Prognostizierte Zinsen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in forecast[:24] %}
+                    <tr>
+                        <td>+{{ entry.month_offset }} Monate</td>
+                        <td>{{ "%.2f"|format(entry.projected_balance) }} €</td>
+                        <td>{{ "%.2f"|format(entry.projected_interest) }} €</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+    {% else %}
+        <p>Keine Prognosedaten verfügbar.</p>
+    {% endif %}
+</section>
+
+<p><a href="{{ url_for('credits.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}

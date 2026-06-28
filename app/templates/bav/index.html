@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Betriebliche Altersvorsorge — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Betriebliche Altersvorsorge (bAV)</h1>
+
+<a href="{{ url_for('bav.create') }}">Neuen bAV-Vertrag anlegen</a>
+
+<section>
+    <h2>Aktive Verträge</h2>
+    {% if active_contracts %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Anbieter</th>
+                    <th>Durchführungsweg</th>
+                    <th>Vertragsbeginn</th>
+                    <th>AN-Beitrag</th>
+                    <th>AG-Beitrag</th>
+                    <th>Gesamt (mtl.)</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contract in active_contracts %}
+                <tr>
+                    <td><a href="{{ url_for('bav.detail', id=contract.id) }}">{{ contract.provider }}</a></td>
+                    <td>{{ contract.type.value | capitalize }}</td>
+                    <td>{{ contract.start_date.strftime("%d.%m.%Y") }}</td>
+                    <td>{{ "%.2f"|format(contract.employee_contribution_monthly) }} €</td>
+                    <td>{{ "%.2f"|format(contract.employer_contribution_monthly) }} €</td>
+                    <td>{{ "%.2f"|format(contract.total_contribution_monthly) }} €</td>
+                    <td>
+                        <a href="{{ url_for('bav.detail', id=contract.id) }}">Details</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine aktiven bAV-Verträge vorhanden.</p>
+    {% endif %}
+</section>
+
+{% if inactive_contracts %}
+<section>
+    <h2>Inaktive Verträge</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Anbieter</th>
+                <th>Durchführungsweg</th>
+                <th>Vertragsbeginn</th>
+                <th>Gesamt (mtl.)</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contract in inactive_contracts %}
+            <tr>
+                <td><a href="{{ url_for('bav.detail', id=contract.id) }}">{{ contract.provider }}</a></td>
+                <td>{{ contract.type.value | capitalize }}</td>
+                <td>{{ contract.start_date.strftime("%d.%m.%Y") }}</td>
+                <td>{{ "%.2f"|format(contract.total_contribution_monthly) }} €</td>
+                <td><span class="badge-inactive">Inaktiv</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Ausgleich erstellen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Neuen Ausgleich erstellen</h1>
+
+{% if partner %}
+    <p>Zahlung von <strong>{{ current_user.username }}</strong> an <strong>{{ partner.username }}</strong>.</p>
+{% endif %}
+
+<form method="POST" action="{{ url_for('settlements.create') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.amount.label }}
+        {{ form.amount() }}
+        {% for error in form.amount.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.date.label }}
+        {{ form.date() }}
+        {% for error in form.date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('settlements.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}

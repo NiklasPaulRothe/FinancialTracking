@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}ETF kaufen — {{ position.ticker }}.{{ position.exchange_suffix }} — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('etf.portfolio') }}">Portfolio</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Kaufen: {{ position.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-cart-plus"></i> ETF kaufen
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>{{ position.ticker }}.{{ position.exchange_suffix }}</strong> — {{ position.name }}<br>
+                        Aktuelle Anteile: {{ position.shares|format_number(6) }}
+                        {% if position.current_price %}
+                            | Aktueller Kurs: {{ position.current_price|format_currency }}
+                        {% endif %}
+                    </div>
+
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.shares_quantity.label(class="form-label") }}
+                            {{ form.shares_quantity(class="form-control" + (" is-invalid" if form.shares_quantity.errors else ""), step="0.000001", placeholder="z.B. 10.5") }}
+                            {% for error in form.shares_quantity.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.price_per_share.label(class="form-label") }}
+                            {{ form.price_per_share(class="form-control" + (" is-invalid" if form.price_per_share.errors else ""), step="0.000001", placeholder="z.B. 95.50") }}
+                            {% for error in form.price_per_share.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.date.label(class="form-label") }}
+                            {{ form.date(class="form-control" + (" is-invalid" if form.date.errors else ""), type="date") }}
+                            {% for error in form.date.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.linked_account_id.label(class="form-label") }}
+                            {{ form.linked_account_id(class="form-select" + (" is-invalid" if form.linked_account_id.errors else "")) }}
+                            <div class="form-text">Optional: Betrag wird vom gewählten Konto abgezogen.</div>
+                            {% for error in form.linked_account_id.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            {{ form.submit(class="btn btn-success") }}
+                            <a href="{{ url_for('etf.portfolio') }}" class="btn btn-secondary">Abbrechen</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Rückzahlung: {{ credit.name }} — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Rückzahlung: {{ credit.name }}</h1>
+
+<div class="credit-summary">
+    <p><strong>Restschuld:</strong> {{ "%.2f"|format(credit.remaining_balance) }} €</p>
+    <p><strong>Aufgelaufene Zinsen:</strong> {{ "%.2f"|format(credit.accrued_interest) }} €</p>
+    <p><strong>Gesamt offen:</strong> {{ "%.2f"|format(credit.remaining_balance + credit.accrued_interest) }} €</p>
+</div>
+
+<form method="POST" action="{{ url_for('credits.repay', id=credit.id) }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.amount.label }}
+        {{ form.amount() }}
+        <small>Die Rückzahlung wird zuerst auf aufgelaufene Zinsen, dann auf die Restschuld angerechnet.</small>
+        {% for error in form.amount.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('credits.detail', id=credit.id) }}">Zurück zum Kredit</a></p>
+{% endblock %}

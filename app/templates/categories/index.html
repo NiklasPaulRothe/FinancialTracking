@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Kategorien – Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Kategorien verwalten</h2>
+
+    {# Create form #}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Neue Kategorie erstellen</h5>
+            <form method="POST" action="{{ url_for('categories.create') }}" class="row g-3">
+                <div class="col-md-4">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="name" name="name"
+                           maxlength="50" required placeholder="Kategoriename">
+                </div>
+                <div class="col-md-3">
+                    <label for="scope" class="form-label">Bereich</label>
+                    <select class="form-select" id="scope" name="scope">
+                        <option value="personal">Persönlich</option>
+                        <option value="shared">Gemeinsam</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="icon" class="form-label">Icon (optional)</label>
+                    <input type="text" class="form-control" id="icon" name="icon"
+                           maxlength="50" placeholder="z.B. 🏠">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Category list #}
+    {% if categories %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Bereich</th>
+                    <th>Icon</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                <tr>
+                    <td>{{ category.name }}</td>
+                    <td>
+                        {% if category.scope == 'personal' %}
+                        <span class="badge bg-info">Persönlich</span>
+                        {% else %}
+                        <span class="badge bg-success">Gemeinsam</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ category.icon or '–' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('categories.delete', id=category.id) }}"
+                              onsubmit="return confirm('Kategorie wirklich löschen? Transaktionen werden nicht gelöscht, aber die Kategorie-Zuordnung wird entfernt.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">Keine Kategorien vorhanden. Erstellen Sie Ihre erste Kategorie oben.</p>
+    {% endif %}
+</div>
+{% endblock %}

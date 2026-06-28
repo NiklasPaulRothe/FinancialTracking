@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}ETF-Position hinzufügen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Neue ETF-Position hinzufügen</h1>
+
+<form method="POST" action="{{ url_for('etf.add_position') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.ticker.label }}
+        {{ form.ticker(size=10, placeholder="z.B. VWCE") }}
+        {% for error in form.ticker.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.exchange_suffix.label }}
+        {{ form.exchange_suffix(size=10, placeholder="z.B. DE") }}
+        {% for error in form.exchange_suffix.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.name.label }}
+        {{ form.name(size=50, placeholder="z.B. Vanguard FTSE All-World") }}
+        {% for error in form.name.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.shares.label }}
+        {{ form.shares() }}
+        {% for error in form.shares.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.average_buy_price.label }}
+        {{ form.average_buy_price() }}
+        {% for error in form.average_buy_price.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('etf.portfolio') }}">Zurück zum Portfolio</a></p>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}bAV-Vertrag anlegen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Neuen bAV-Vertrag anlegen</h1>
+
+<form method="POST" action="{{ url_for('bav.create') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.provider.label }}
+        {{ form.provider(size=50) }}
+        {% for error in form.provider.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.type.label }}
+        {{ form.type() }}
+        {% for error in form.type.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.start_date.label }}
+        {{ form.start_date() }}
+        {% for error in form.start_date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.employee_contribution_monthly.label }}
+        {{ form.employee_contribution_monthly() }}
+        {% for error in form.employee_contribution_monthly.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.employer_contribution_monthly.label }}
+        {{ form.employer_contribution_monthly() }}
+        <small>Auf 0,00 setzen, wenn kein Arbeitgeberzuschuss vorhanden.</small>
+        {% for error in form.employer_contribution_monthly.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('bav.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}

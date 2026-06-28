@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Kredit erstellen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Neuen Kredit erstellen</h1>
+
+<form method="POST" action="{{ url_for('credits.create') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.name.label }}
+        {{ form.name(size=50) }}
+        {% for error in form.name.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.principal.label }}
+        {{ form.principal() }}
+        {% for error in form.principal.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.effective_yearly_rate.label }}
+        {{ form.effective_yearly_rate() }}
+        <small>Beispiel: 0.05 entspricht 5% Jahreszins.</small>
+        {% for error in form.effective_yearly_rate.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.disbursement_date.label }}
+        {{ form.disbursement_date() }}
+        {% for error in form.disbursement_date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.interest_capitalization_day.label }}
+        {{ form.interest_capitalization_day() }}
+        <small>Tag im Monat, an dem aufgelaufene Zinsen kapitalisiert werden.</small>
+        {% for error in form.interest_capitalization_day.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.account_id.label }}
+        {{ form.account_id() }}
+        {% for error in form.account_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.scope.label }}
+        {{ form.scope() }}
+        {% for error in form.scope.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('credits.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}

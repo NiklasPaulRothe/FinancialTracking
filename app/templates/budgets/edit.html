@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Budget bearbeiten — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Budget bearbeiten: {{ budget.name }}</h1>
+
+<form method="POST" action="{{ url_for('budgets.edit', id=budget.id) }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.name.label }}
+        {{ form.name(size=50) }}
+        {% for error in form.name.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.scope.label }}
+        {{ form.scope() }}
+        {% for error in form.scope.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.category_id.label }}
+        {{ form.category_id() }}
+        {% for error in form.category_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.amount.label }}
+        {{ form.amount() }}
+        {% for error in form.amount.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.period.label }}
+        {{ form.period() }}
+        {% for error in form.period.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.start_date.label }}
+        {{ form.start_date() }}
+        {% for error in form.start_date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('budgets.index') }}">Zurück zur Budgetübersicht</a></p>
+{% endblock %}

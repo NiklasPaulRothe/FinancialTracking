@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}CSV-Import — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>CSV-Import: Datei hochladen</h1>
+
+<p>Laden Sie eine CSV-Datei Ihrer Bank hoch, um Transaktionen automatisch zu importieren.</p>
+
+<form method="POST" action="{{ url_for('imports.upload') }}" enctype="multipart/form-data" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div>
+        <label for="account_id">Zielkonto</label>
+        <select name="account_id" id="account_id" required>
+            <option value="">— Konto auswählen —</option>
+            {% for account in accounts %}
+                <option value="{{ account.id }}">{{ account.name }} ({{ account.type.value }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <label for="csv_file">CSV-Datei</label>
+        <input type="file" name="csv_file" id="csv_file" accept=".csv,.txt" required>
+        <small>Maximal 10 MB, bis zu 10.000 Zeilen. Unterstützte Formate: CSV mit Komma- oder Semikolon-Trennung.</small>
+    </div>
+
+    <div>
+        <button type="submit">Datei hochladen</button>
+    </div>
+</form>
+
+<p><a href="{{ url_for('transactions.index') }}">Zurück zur Transaktionsübersicht</a></p>
+{% endblock %}

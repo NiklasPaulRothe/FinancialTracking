@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Registrieren — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Registrieren</h1>
+
+<form method="POST" action="{{ url_for('auth.register') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.username.label }}
+        {{ form.username(size=30) }}
+        {% for error in form.username.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.email.label }}
+        {{ form.email(size=50) }}
+        {% for error in form.email.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.password.label }}
+        {{ form.password(size=30) }}
+        {% for error in form.password.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.password_confirm.label }}
+        {{ form.password_confirm(size=30) }}
+        {% for error in form.password_confirm.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.income_day.label }}
+        {{ form.income_day(min=1, max=31) }}
+        {% for error in form.income_day.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p>Bereits registriert? <a href="{{ url_for('auth.login') }}">Anmelden</a></p>
+{% endblock %}

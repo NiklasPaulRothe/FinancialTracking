@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Konto erstellen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Neues Konto erstellen</h1>
+
+<form method="POST" action="{{ url_for('accounts.create') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.name.label }}
+        {{ form.name(size=50) }}
+        {% for error in form.name.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.type.label }}
+        {{ form.type() }}
+        {% for error in form.type.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.scope.label }}
+        {{ form.scope() }}
+        {% for error in form.scope.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.institute.label }}
+        {{ form.institute(size=50) }}
+        {% for error in form.institute.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.visible_to_partner() }} {{ form.visible_to_partner.label }}
+    </div>
+
+    <div>
+        {{ form.max_overdraft.label }}
+        {{ form.max_overdraft() }}
+        {% for error in form.max_overdraft.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <fieldset id="credit-card-fields">
+        <legend>Kreditkarten-Details</legend>
+
+        <div>
+            {{ form.credit_limit.label }}
+            {{ form.credit_limit() }}
+            {% for error in form.credit_limit.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.statement_closing_day.label }}
+            {{ form.statement_closing_day() }}
+            {% for error in form.statement_closing_day.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.payment_due_day.label }}
+            {{ form.payment_due_day() }}
+            {% for error in form.payment_due_day.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+    </fieldset>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('accounts.index') }}">Zurück zur Kontenübersicht</a></p>
+{% endblock %}

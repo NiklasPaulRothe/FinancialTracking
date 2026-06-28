@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Einstellungen{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Einstellungen</h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Persönliche Einstellungen</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('settings.index') }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.income_day.label(class="form-label") }}
+                            {{ form.income_day(class="form-control", min=1, max=31) }}
+                            {% for error in form.income_day.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Tag des Monats, an dem Ihr Gehalt eingeht (1-31).
+                                Wird bei Wochenenden/Feiertagen auf den letzten Bankarbeitstag angepasst.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.date_format.label(class="form-label") }}
+                            {{ form.date_format(class="form-select") }}
+                            {% for error in form.date_format.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.marginal_tax_rate.label(class="form-label") }}
+                            {{ form.marginal_tax_rate(class="form-control", step="0.0001", min="0", max="1") }}
+                            {% for error in form.marginal_tax_rate.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Dezimalwert zwischen 0,0 und 1,0 (z.B. 0,42 für 42%).
+                                Wird für bAV-Nettokostenberechnung verwendet.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.social_security_rate.label(class="form-label") }}
+                            {{ form.social_security_rate(class="form-control", step="0.0001", min="0", max="1") }}
+                            {% for error in form.social_security_rate.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Dezimalwert zwischen 0,0 und 1,0 (z.B. 0,20 für 20%).
+                                Wird für bAV-Nettokostenberechnung verwendet.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.assumed_annual_return.label(class="form-label") }}
+                            {{ form.assumed_annual_return(class="form-control", step="0.0001", min="0", max="1") }}
+                            {% for error in form.assumed_annual_return.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Erwartete jährliche Rendite als Dezimalwert (z.B. 0,07 für 7%).
+                                Wird für Vermögensprognosen verwendet.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.target_retirement_age.label(class="form-label") }}
+                            {{ form.target_retirement_age(class="form-control", min=18, max=100) }}
+                            {% for error in form.target_retirement_age.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Alter, bis zu dem Vermögensprognosen berechnet werden.
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Sicherheit</h5>
+                </div>
+                <div class="card-body">
+                    <p>Möchten Sie Ihr Passwort ändern?</p>
+                    <a href="{{ url_for('settings.change_password') }}" class="btn btn-outline-secondary">
+                        Passwort ändern
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

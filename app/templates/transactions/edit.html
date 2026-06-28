@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Transaktion bearbeiten — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Transaktion bearbeiten</h1>
+
+<form method="POST" action="{{ url_for('transactions.edit', id=transaction.id) }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.type.label }}
+        {{ form.type(id="transaction-type") }}
+        {% for error in form.type.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.amount.label }}
+        {{ form.amount(step="0.01", min="0.01") }}
+        {% for error in form.amount.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.date.label }}
+        {{ form.date() }}
+        {% for error in form.date.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.account_id.label }}
+        {{ form.account_id() }}
+        {% for error in form.account_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div id="destination-account-field">
+        {{ form.destination_account_id.label }}
+        {{ form.destination_account_id() }}
+        {% for error in form.destination_account_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.scope.label }}
+        {{ form.scope() }}
+        {% for error in form.scope.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.category_id.label }}
+        {{ form.category_id() }}
+        {% for error in form.category_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.description.label }}
+        {{ form.description(size=80) }}
+        {% for error in form.description.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('transactions.index') }}">Zurück zur Transaktionsübersicht</a></p>
+
+<script>
+    // Show/hide destination account field based on transaction type
+    (function() {
+        var typeSelect = document.getElementById('transaction-type');
+        var destField = document.getElementById('destination-account-field');
+
+        function toggleDestination() {
+            var needsDest = (typeSelect.value === 'transfer' || typeSelect.value === 'credit_card_payment');
+            destField.style.display = needsDest ? '' : 'none';
+        }
+
+        typeSelect.addEventListener('change', toggleDestination);
+        toggleDestination();
+    })();
+</script>
+{% endblock %}

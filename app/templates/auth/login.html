@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Anmelden — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Anmelden</h1>
+
+<form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.username.label }}
+        {{ form.username(size=30) }}
+        {% for error in form.username.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.password.label }}
+        {{ form.password(size=30) }}
+        {% for error in form.password.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.remember_me() }} {{ form.remember_me.label }}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p>Noch kein Konto? <a href="{{ url_for('auth.register') }}">Registrieren</a></p>
+{% endblock %}

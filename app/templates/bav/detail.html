@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}bAV: {{ contract.provider }} — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>bAV-Vertrag: {{ contract.provider }}</h1>
+
+<div class="contract-detail">
+    <p><strong>Durchführungsweg:</strong> {{ contract.type.value | capitalize }}</p>
+    <p><strong>Status:</strong>
+        {% if contract.active %}
+            <span class="badge-active">Aktiv</span>
+        {% else %}
+            <span class="badge-inactive">Inaktiv</span>
+        {% endif %}
+    </p>
+    <p><strong>Vertragsbeginn:</strong> {{ contract.start_date.strftime("%d.%m.%Y") }}</p>
+    <p><strong>Arbeitnehmer-Beitrag (monatlich):</strong> {{ "%.2f"|format(contract.employee_contribution_monthly) }} €</p>
+    <p><strong>Arbeitgeber-Beitrag (monatlich):</strong> {{ "%.2f"|format(contract.employer_contribution_monthly) }} €</p>
+    <p><strong>Gesamtbeitrag (monatlich):</strong> {{ "%.2f"|format(contract.total_contribution_monthly) }} €</p>
+</div>
+
+<section>
+    <h2>Beitragshistorie</h2>
+    {% if contributions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Monat</th>
+                    <th>Arbeitnehmer</th>
+                    <th>Arbeitgeber</th>
+                    <th>Gesamt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in contributions %}
+                <tr>
+                    <td>{{ log.month.strftime("%m/%Y") }}</td>
+                    <td>{{ "%.2f"|format(log.employee_amount) }} €</td>
+                    <td>{{ "%.2f"|format(log.employer_amount) }} €</td>
+                    <td>{{ "%.2f"|format(log.employee_amount + log.employer_amount) }} €</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Noch keine Beiträge verbucht.</p>
+    {% endif %}
+</section>
+
+<p><a href="{{ url_for('bav.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}

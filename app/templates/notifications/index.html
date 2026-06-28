@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Benachrichtigungen – Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Benachrichtigungen</h2>
+
+    {% if notifications %}
+    <div class="list-group">
+        {% for notification in notifications %}
+        <div class="list-group-item d-flex justify-content-between align-items-start {% if not notification.read %}list-group-item-light{% endif %}">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold">
+                    {% if not notification.read %}
+                    <span class="badge bg-primary me-1">Neu</span>
+                    {% endif %}
+                    {{ notification.message }}
+                </div>
+                <small class="text-muted">
+                    {{ notification.created_at.strftime('%d.%m.%Y %H:%M') }}
+                    – Typ: {{ notification.type }}
+                </small>
+            </div>
+            {% if not notification.read %}
+            <form method="POST" action="{{ url_for('notifications.mark_read', id=notification.id) }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Als gelesen markieren">
+                    ✓
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">Keine Benachrichtigungen vorhanden.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Konten — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Konten</h1>
+
+<a href="{{ url_for('accounts.create') }}">Neues Konto erstellen</a>
+
+<section>
+    <h2>Giro- und Sparkonten</h2>
+    {% if spending_saving %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Typ</th>
+                    <th>Zuordnung</th>
+                    <th>Kontostand</th>
+                    <th>Institut</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in spending_saving %}
+                <tr>
+                    <td>{{ account.name }}</td>
+                    <td>{{ "Girokonto" if account.type.value == "spending" else "Sparkonto" }}</td>
+                    <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
+                    <td>{{ "%.2f"|format(account.balance) }} €</td>
+                    <td>{{ account.institute or "—" }}</td>
+                    <td>
+                        <a href="{{ url_for('accounts.edit', id=account.id) }}">Bearbeiten</a>
+                        <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" onclick="return confirm('Konto wirklich löschen?')">Löschen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine Giro- oder Sparkonten vorhanden.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Kreditkarten</h2>
+    {% if credit_cards %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Zuordnung</th>
+                    <th>Kontostand</th>
+                    <th>Kreditlimit</th>
+                    <th>Institut</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in credit_cards %}
+                <tr>
+                    <td>{{ account.name }}</td>
+                    <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
+                    <td>{{ "%.2f"|format(account.balance) }} €</td>
+                    <td>{{ "%.2f"|format(account.credit_limit) if account.credit_limit else "—" }} €</td>
+                    <td>{{ account.institute or "—" }}</td>
+                    <td>
+                        <a href="{{ url_for('accounts.edit', id=account.id) }}">Bearbeiten</a>
+                        <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" onclick="return confirm('Konto wirklich löschen?')">Löschen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine Kreditkarten vorhanden.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Daueraufträge — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Daueraufträge</h1>
+
+<a href="{{ url_for('recurring.create') }}">Neuen Dauerauftrag erstellen</a>
+
+<section>
+    <h2>Aktive Daueraufträge</h2>
+    {% if active_rules %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Typ</th>
+                    <th>Frequenz</th>
+                    <th>Intervall</th>
+                    <th>Betrag</th>
+                    <th>Nächste Fälligkeit</th>
+                    <th>Zuordnung</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in active_rules %}
+                <tr>
+                    <td>{{ rule.name }}</td>
+                    <td>
+                        {% if rule.type.value == "income" %}Einnahme
+                        {% elif rule.type.value == "expense" %}Ausgabe
+                        {% elif rule.type.value == "transfer" %}Umbuchung
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if rule.frequency.value == "daily" %}Täglich
+                        {% elif rule.frequency.value == "weekly" %}Wöchentlich
+                        {% elif rule.frequency.value == "monthly" %}Monatlich
+                        {% elif rule.frequency.value == "quarterly" %}Vierteljährlich
+                        {% elif rule.frequency.value == "yearly" %}Jährlich
+                        {% endif %}
+                    </td>
+                    <td>{{ rule.interval }}</td>
+                    <td>{{ "%.2f"|format(rule.amount) }} €</td>
+                    <td>{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
+                    <td>{{ "Persönlich" if rule.scope.value == "personal" else "Gemeinsam" }}</td>
+                    <td><span class="status-active">Aktiv</span></td>
+                    <td>
+                        <a href="{{ url_for('recurring.edit', id=rule.id) }}">Bearbeiten</a>
+                        <form method="POST" action="{{ url_for('recurring.toggle', id=rule.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">Deaktivieren</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine aktiven Daueraufträge vorhanden.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Inaktive Daueraufträge</h2>
+    {% if inactive_rules %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Typ</th>
+                    <th>Frequenz</th>
+                    <th>Intervall</th>
+                    <th>Betrag</th>
+                    <th>Nächste Fälligkeit</th>
+                    <th>Zuordnung</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in inactive_rules %}
+                <tr>
+                    <td>{{ rule.name }}</td>
+                    <td>
+                        {% if rule.type.value == "income" %}Einnahme
+                        {% elif rule.type.value == "expense" %}Ausgabe
+                        {% elif rule.type.value == "transfer" %}Umbuchung
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if rule.frequency.value == "daily" %}Täglich
+                        {% elif rule.frequency.value == "weekly" %}Wöchentlich
+                        {% elif rule.frequency.value == "monthly" %}Monatlich
+                        {% elif rule.frequency.value == "quarterly" %}Vierteljährlich
+                        {% elif rule.frequency.value == "yearly" %}Jährlich
+                        {% endif %}
+                    </td>
+                    <td>{{ rule.interval }}</td>
+                    <td>{{ "%.2f"|format(rule.amount) }} €</td>
+                    <td>{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
+                    <td>{{ "Persönlich" if rule.scope.value == "personal" else "Gemeinsam" }}</td>
+                    <td><span class="status-inactive">Inaktiv</span></td>
+                    <td>
+                        <a href="{{ url_for('recurring.edit', id=rule.id) }}">Bearbeiten</a>
+                        <form method="POST" action="{{ url_for('recurring.toggle', id=rule.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">Aktivieren</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine inaktiven Daueraufträge vorhanden.</p>
+    {% endif %}
+</section>
+{% endblock %}

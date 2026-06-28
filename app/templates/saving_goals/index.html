@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Sparziele — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Sparziele</h1>
+
+<a href="{{ url_for('saving_goals.create') }}">Neues Sparziel erstellen</a>
+
+<section>
+    <h2>Aktive Sparziele</h2>
+    {% if active_goals %}
+        <div class="goal-cards">
+            {% for goal in active_goals %}
+            <div class="goal-card">
+                <h3><a href="{{ url_for('saving_goals.detail', id=goal.id) }}">{{ goal.name }}</a></h3>
+                <p class="scope">{{ "Persönlich" if goal.scope.value == "personal" else "Gemeinsam" }}</p>
+
+                {% if goal.target_amount %}
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: {{ [goal.progress_percent, 100] | min }}%"></div>
+                    </div>
+                    <p class="progress-text">
+                        {{ "%.2f"|format(goal.total_contributions) }} € von {{ "%.2f"|format(goal.target_amount) }} €
+                        ({{ "%.1f"|format(goal.progress_percent) }}%)
+                    </p>
+                {% else %}
+                    <p class="progress-text">
+                        Gespart: {{ "%.2f"|format(goal.total_contributions) }} €
+                        <span class="badge-open">(Offenes Ziel)</span>
+                    </p>
+                {% endif %}
+
+                <p>{{ goal.contributions | length }} Beitrag/Beiträge</p>
+
+                <div class="goal-actions">
+                    <form method="POST" action="{{ url_for('saving_goals.complete', id=goal.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Abschließen</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('saving_goals.cancel', id=goal.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" onclick="return confirm('Sparziel wirklich abbrechen?')">Abbrechen</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>Keine aktiven Sparziele vorhanden.</p>
+    {% endif %}
+</section>
+
+{% if completed_goals %}
+<section>
+    <h2>Abgeschlossene Sparziele</h2>
+    <div class="goal-cards">
+        {% for goal in completed_goals %}
+        <div class="goal-card goal-completed">
+            <h3><a href="{{ url_for('saving_goals.detail', id=goal.id) }}">{{ goal.name }}</a></h3>
+            <p>Gespart: {{ "%.2f"|format(goal.total_contributions) }} €</p>
+            <span class="badge-completed">Abgeschlossen</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if cancelled_goals %}
+<section>
+    <h2>Abgebrochene Sparziele</h2>
+    <div class="goal-cards">
+        {% for goal in cancelled_goals %}
+        <div class="goal-card goal-cancelled">
+            <h3><a href="{{ url_for('saving_goals.detail', id=goal.id) }}">{{ goal.name }}</a></h3>
+            <p>Gespart: {{ "%.2f"|format(goal.total_contributions) }} €</p>
+            <span class="badge-cancelled">Abgebrochen</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

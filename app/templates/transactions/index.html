@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Transaktionen — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Transaktionen</h1>
+
+<a href="{{ url_for('transactions.create') }}">Neue Transaktion erstellen</a>
+
+<section>
+    <h2>Filter</h2>
+    <form method="GET" action="{{ url_for('transactions.index') }}">
+        <div>
+            <label for="filter-type">Typ</label>
+            <select id="filter-type" name="type">
+                <option value="">— Alle —</option>
+                <option value="income" {{ 'selected' if filter_type == 'income' }}>Einnahme</option>
+                <option value="expense" {{ 'selected' if filter_type == 'expense' }}>Ausgabe</option>
+                <option value="transfer" {{ 'selected' if filter_type == 'transfer' }}>Umbuchung</option>
+                <option value="credit_card_payment" {{ 'selected' if filter_type == 'credit_card_payment' }}>Kreditkartenzahlung</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="filter-date-from">Von</label>
+            <input type="date" id="filter-date-from" name="date_from" value="{{ filter_date_from }}">
+        </div>
+
+        <div>
+            <label for="filter-date-to">Bis</label>
+            <input type="date" id="filter-date-to" name="date_to" value="{{ filter_date_to }}">
+        </div>
+
+        <div>
+            <label for="filter-account">Konto</label>
+            <select id="filter-account" name="account_id">
+                <option value="">— Alle Konten —</option>
+                {% for account in accounts %}
+                    <option value="{{ account.id }}" {{ 'selected' if filter_account_id == account.id|string }}>{{ account.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit">Filtern</button>
+            <a href="{{ url_for('transactions.index') }}">Zurücksetzen</a>
+        </div>
+    </form>
+</section>
+
+<section>
+    <h2>Übersicht</h2>
+    {% if transactions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Typ</th>
+                    <th>Betrag</th>
+                    <th>Konto</th>
+                    <th>Zielkonto</th>
+                    <th>Zuordnung</th>
+                    <th>Beschreibung</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td>{{ txn.date.strftime('%d.%m.%Y') }}</td>
+                    <td>
+                        {% if txn.type.value == 'income' %}Einnahme
+                        {% elif txn.type.value == 'expense' %}Ausgabe
+                        {% elif txn.type.value == 'transfer' %}Umbuchung
+                        {% elif txn.type.value == 'credit_card_payment' %}Kreditkartenzahlung
+                        {% endif %}
+                    </td>
+                    <td>{{ "%.2f"|format(txn.amount) }} €</td>
+                    <td>{{ txn.account.name if txn.account else "—" }}</td>
+                    <td>{{ txn.destination_account.name if txn.destination_account else "—" }}</td>
+                    <td>{{ "Persönlich" if txn.scope.value == "personal" else "Gemeinsam" }}</td>
+                    <td>{{ txn.description or "—" }}</td>
+                    <td>
+                        <a href="{{ url_for('transactions.edit', id=txn.id) }}">Bearbeiten</a>
+                        <form method="POST" action="{{ url_for('transactions.delete', id=txn.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" onclick="return confirm('Transaktion wirklich löschen?')">Löschen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Keine Transaktionen vorhanden.</p>
+    {% endif %}
+</section>
+{% endblock %}

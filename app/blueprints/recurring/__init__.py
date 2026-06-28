@@ -1,0 +1,170 @@
+"""Recurring blueprint for Haushaltsbuch.
+
+Provides index, create, edit, and toggle routes for recurring rule management.
+Delegates all business logic to RecurringService (when available) or direct model access.
+
+Validates: Requirements 5.1, 5.9, 5.10
+"""
+
+from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
+
+from app.extensions import db
+from app.models.account import Account
+from app.models.category import Category
+from app.models.transaction import (
+    RecurringFrequency,
+    RecurringRule,
+    TransactionScope,
+    TransactionType,
+)
+from app.blueprints.recurring.forms import RecurringRuleCreateForm, RecurringRuleEditForm
+
+recurring_bp = Blueprint(
+    "recurring", __name__, url_prefix="/recurring", template_folder="templates"
+)
+
+
+def _get_user_accounts():
+    """Get active accounts for the current user."""
+    return Account.query.filter_by(owner_id=current_user.id, active=True).all()
+
+
+def _get_user_categories():
+    """Get categories for the current user."""
+    return Category.query.filter_by(user_id=current_user.id).all()
+
+
+@recurring_bp.route("/")
+@login_required
+def index():
+    """Display recurring rules grouped by active/inactive status.
+
+    Validates: Requirement 5.9
+    Shows all recurring rules with status, toggle button, and edit link.
+    """
+    rules = (
+        RecurringRule.query.filter_by(user_id=current_user.id)
+        .order_by(RecurringRule.active.desc(), RecurringRule.next_due_date.asc())
+        .all()
+    )
+
+    active_rules = [r for r in rules if r.active]
+    inactive_rules = [r for r in rules if not r.active]
+
+    return render_template(
+        "recurring/index.html",
+        active_rules=active_rules,
+        inactive_rules=inactive_rules,
+    )
+
+
+@recurring_bp.route("/create", methods=["GET", "POST"])
+@login_required
+def create():
+    """Create a new recurring rule.
+
+    Validates: Requirements 5.1, 5.10
+    """
+    accounts = _get_user_accounts()
+    categories = _get_user_categories()
+    form = RecurringRuleCreateForm(accounts=accounts, categories=categories)
+
+    if form.validate_on_submit():
+        rule = RecurringRule(
+            name=form.name.data,
+            type=TransactionType(form.type.data),
+            frequency=RecurringFrequency(form.frequency.data),
+            interval=form.interval.data,
+            amount=form.amount.data,
+            next_due_date=form.next_due_date.data,
+            active=True,
+            scope=TransactionScope(form.scope.data),
+            account_id=form.account_id.data,
+            destination_account_id=form.destination_account_id.data,
+            category_id=form.category_id.data,
+            user_id=current_user.id,
+        )
+        db.session.add(rule)
+        db.session.commit()
+        flash("Dauerauftrag erfolgreich erstellt.", "success")
+        return redirect(url_for("recurring.index"))
+
+    return render_template("recurring/create.html", form=form)
+
+
+@recurring_bp.route("/edit/<int:id>", methods=["GET", "POST"])
+@login_required
+def edit(id):
+    """Edit an existing recurring rule.
+
+    Validates: Requirements 5.1, 5.10
+    """
+    rule = db.session.get(RecurringRule, id)
+    if rule is None or rule.user_id != current_user.id:
+        flash("Dauerauftrag nicht gefunden.", "danger")
+        return redirect(url_for("recurring.index"))
+
+    accounts = _get_user_accounts()
+    categories = _get_user_categories()
+
+    if request.method == "GET":
+        form = RecurringRuleEditForm(
+            accounts=accounts,
+            categories=categories,
+            data={
+                "name": rule.name,
+                "type": rule.type.value,
+                "frequency": rule.frequency.value,
+                "interval": rule.interval,
+                "amount": rule.amount,
+                "next_due_date": rule.next_due_date,
+                "account_id": rule.account_id,
+                "destination_account_id": rule.destination_account_id or 0,
+                "scope": rule.scope.value,
+                "category_id": rule.category_id or 0,
+            },
+        )
+    else:
+        form = RecurringRuleEditForm(accounts=accounts, categories=categories)
+
+    if form.validate_on_submit():
+        rule.name = form.name.data
+        rule.type = TransactionType(form.type.data)
+        rule.frequency = RecurringFrequency(form.frequency.data)
+        rule.interval = form.interval.data
+        rule.amount = form.amount.data
+        rule.next_due_date = form.next_due_date.data
+        rule.scope = TransactionScope(form.scope.data)
+        rule.account_id = form.account_id.data
+        rule.destination_account_id = form.destination_account_id.data
+        rule.category_id = form.category_id.data
+        db.session.commit()
+        flash("Dauerauftrag erfolgreich aktualisiert.", "success")
+        return redirect(url_for("recurring.index"))
+
+    return render_template("recurring/edit.html", form=form, rule=rule)
+
+
+@recurring_bp.route("/toggle/<int:id>", methods=["POST"])
+@login_required
+def toggle(id):
+    """Toggle a recurring rule's active status.
+
+    Validates: Requirement 5.9
+    Flips active from True to False or vice versa.
+    """
+    rule = db.session.get(RecurringRule, id)
+    if rule is None or rule.user_id != current_user.id:
+        flash("Dauerauftrag nicht gefunden.", "danger")
+        return redirect(url_for("recurring.index"))
+
+    rule.active = not rule.active
+    db.session.commit()
+
+    if rule.active:
+        flash("Dauerauftrag aktiviert.", "success")
+    else:
+        flash("Dauerauftrag deaktiviert.", "success")
+
+    return redirect(url_for("recurring.index"))

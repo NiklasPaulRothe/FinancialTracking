@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Übersicht – Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  {# View toggle #}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Übersicht</h1>
+    <div class="btn-group" role="group" aria-label="Ansicht wechseln">
+      <a href="{{ url_for('dashboard.index', view='personal') }}"
+         class="btn btn-sm {{ 'btn-primary' if view_mode == 'personal' else 'btn-outline-primary' }}">
+        Persönlich
+      </a>
+      <a href="{{ url_for('dashboard.index', view='shared') }}"
+         class="btn btn-sm {{ 'btn-primary' if view_mode == 'shared' else 'btn-outline-primary' }}">
+        Gemeinsam
+      </a>
+    </div>
+  </div>
+
+  {% if view_mode == 'personal' %}
+  {# ==================== PERSONAL VIEW ==================== #}
+  <div class="row g-3">
+
+    {# Balance Card #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Kontostand</h5>
+          <p class="mb-1"><strong>Gesamtsaldo:</strong> {{ "%.2f"|format(total_balance) }} €</p>
+          <p class="mb-0"><strong>Verfügbar:</strong> {{ "%.2f"|format(available_balance) }} €</p>
+        </div>
+      </div>
+    </div>
+
+    {# Income Cycle Progress #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Einkommenszyklus</h5>
+          {% if income_cycle_progress.next_income_date %}
+          <div class="progress mb-2" role="progressbar"
+               aria-valuenow="{{ income_cycle_progress.percentage }}"
+               aria-valuemin="0" aria-valuemax="100"
+               aria-label="Fortschritt im Einkommenszyklus">
+            <div class="progress-bar" style="width: {{ income_cycle_progress.percentage }}%">
+              {{ income_cycle_progress.percentage }}%
+            </div>
+          </div>
+          <small class="text-muted">
+            Nächstes Einkommen: {{ income_cycle_progress.next_income_date.strftime('%d.%m.%Y') }}
+          </small>
+          {% else %}
+          <p class="text-muted mb-0">Keine Daten verfügbar.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Top 3 Budgets #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Budgets</h5>
+          {% if top_budgets %}
+          <ul class="list-unstyled mb-0">
+            {% for item in top_budgets %}
+            <li class="mb-2">
+              <div class="d-flex justify-content-between">
+                <span>{{ item.budget.name }}</span>
+                <span class="{{ 'text-danger' if item.percentage > 100 else 'text-success' }}">{{ item.percentage }}%</span>
+              </div>
+              <div class="progress" style="height: 6px;" role="progressbar"
+                   aria-valuenow="{{ item.percentage }}" aria-valuemin="0" aria-valuemax="100"
+                   aria-label="{{ item.budget.name }} Auslastung">
+                <div class="progress-bar {{ 'bg-danger' if item.percentage > 100 else 'bg-success' }}"
+                     style="width: {{ [item.percentage, 100]|min }}%"></div>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine Budgets vorhanden.</p>
+          <a href="{{ url_for('budgets.create') }}" class="btn btn-sm btn-outline-primary">Budget erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Next 5 Recurring Expenses #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Nächste Ausgaben</h5>
+          {% if next_recurring %}
+          <ul class="list-group list-group-flush">
+            {% for rule in next_recurring %}
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+              <span>{{ rule.name }}</span>
+              <span class="badge bg-secondary">{{ rule.next_due_date.strftime('%d.%m.') }} · {{ "%.2f"|format(rule.amount) }} €</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine wiederkehrenden Ausgaben.</p>
+          <a href="{{ url_for('recurring.create') }}" class="btn btn-sm btn-outline-primary">Dauerauftrag erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Unresolved Planned Expenses #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Geplante Ausgaben</h5>
+          {% if unresolved_planned_count > 0 %}
+          <p class="display-6 mb-1">{{ unresolved_planned_count }}</p>
+          <p class="text-muted mb-0">offene geplante Ausgaben</p>
+          {% else %}
+          <p class="text-muted mb-1">Keine offenen geplanten Ausgaben.</p>
+          <a href="{{ url_for('planned_expenses.create') }}" class="btn btn-sm btn-outline-primary">Geplante Ausgabe erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Last 5 Transactions #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Letzte Transaktionen</h5>
+          {% if last_transactions %}
+          <ul class="list-group list-group-flush">
+            {% for txn in last_transactions %}
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+              <div>
+                <span>{{ txn.description or txn.type.value }}</span>
+                <br><small class="text-muted">{{ txn.date.strftime('%d.%m.%Y') }}</small>
+              </div>
+              <span class="{{ 'text-success' if txn.type.value == 'income' else 'text-danger' }}">
+                {{ "%.2f"|format(txn.amount) }} €
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine Transaktionen vorhanden.</p>
+          <a href="{{ url_for('transactions.create') }}" class="btn btn-sm btn-outline-primary">Transaktion erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Active Credits #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Aktive Kredite</h5>
+          {% if active_credits %}
+          <ul class="list-group list-group-flush">
+            {% for credit in active_credits %}
+            <li class="list-group-item px-0">
+              <div class="d-flex justify-content-between">
+                <span>{{ credit.name }}</span>
+                <span class="text-danger">{{ "%.2f"|format(credit.remaining_balance) }} €</span>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine aktiven Kredite.</p>
+          <a href="{{ url_for('credits.create') }}" class="btn btn-sm btn-outline-primary">Kredit erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Top 3 Saving Goals #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Sparziele</h5>
+          {% if top_saving_goals %}
+          <ul class="list-unstyled mb-0">
+            {% for item in top_saving_goals %}
+            <li class="mb-2">
+              <div class="d-flex justify-content-between">
+                <span>{{ item.goal.name }}</span>
+                <span>{{ item.percentage }}%</span>
+              </div>
+              <div class="progress" style="height: 6px;" role="progressbar"
+                   aria-valuenow="{{ item.percentage }}" aria-valuemin="0" aria-valuemax="100"
+                   aria-label="{{ item.goal.name }} Fortschritt">
+                <div class="progress-bar bg-info" style="width: {{ [item.percentage, 100]|min }}%"></div>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine Sparziele vorhanden.</p>
+          <a href="{{ url_for('saving_goals.create') }}" class="btn btn-sm btn-outline-primary">Sparziel erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {% else %}
+  {# ==================== SHARED VIEW ==================== #}
+  <div class="row g-3">
+
+    {# Shared Account Balance #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Gemeinsamer Kontostand</h5>
+          <p class="display-6 mb-0">{{ "%.2f"|format(shared_balance) }} €</p>
+        </div>
+      </div>
+    </div>
+
+    {# Net Settlement Balance #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Ausgleich</h5>
+          {% if net_settlement.direction == 'settled' %}
+          <p class="text-success mb-0">Ausgeglichen</p>
+          {% elif net_settlement.direction == 'owes' %}
+          <p class="mb-0">Du schuldest <strong>{{ net_settlement.partner_name }}</strong>: <span class="text-danger">{{ "%.2f"|format(net_settlement.amount) }} €</span></p>
+          {% else %}
+          <p class="mb-0"><strong>{{ net_settlement.partner_name }}</strong> schuldet dir: <span class="text-success">{{ "%.2f"|format(net_settlement.amount) }} €</span></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Shared Budget Utilisation #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Gemeinsame Budgets</h5>
+          {% if top_shared_budgets %}
+          <ul class="list-unstyled mb-0">
+            {% for item in top_shared_budgets %}
+            <li class="mb-2">
+              <div class="d-flex justify-content-between">
+                <span>{{ item.budget.name }}</span>
+                <span class="{{ 'text-danger' if item.percentage > 100 else 'text-success' }}">{{ item.percentage }}%</span>
+              </div>
+              <div class="progress" style="height: 6px;" role="progressbar"
+                   aria-valuenow="{{ item.percentage }}" aria-valuemin="0" aria-valuemax="100"
+                   aria-label="{{ item.budget.name }} Auslastung">
+                <div class="progress-bar {{ 'bg-danger' if item.percentage > 100 else 'bg-success' }}"
+                     style="width: {{ [item.percentage, 100]|min }}%"></div>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine gemeinsamen Budgets vorhanden.</p>
+          <a href="{{ url_for('budgets.create') }}" class="btn btn-sm btn-outline-primary">Budget erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Next 5 Shared Recurring Expenses #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Nächste gemeinsame Ausgaben</h5>
+          {% if next_shared_recurring %}
+          <ul class="list-group list-group-flush">
+            {% for rule in next_shared_recurring %}
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+              <span>{{ rule.name }}</span>
+              <span class="badge bg-secondary">{{ rule.next_due_date.strftime('%d.%m.') }} · {{ "%.2f"|format(rule.amount) }} €</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine gemeinsamen wiederkehrenden Ausgaben.</p>
+          <a href="{{ url_for('recurring.create') }}" class="btn btn-sm btn-outline-primary">Dauerauftrag erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Last 5 Shared Transactions #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Letzte gemeinsame Transaktionen</h5>
+          {% if last_shared_transactions %}
+          <ul class="list-group list-group-flush">
+            {% for txn in last_shared_transactions %}
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+              <div>
+                <span>{{ txn.description or txn.type.value }}</span>
+                <br><small class="text-muted">{{ txn.date.strftime('%d.%m.%Y') }}</small>
+              </div>
+              <span class="{{ 'text-success' if txn.type.value == 'income' else 'text-danger' }}">
+                {{ "%.2f"|format(txn.amount) }} €
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine gemeinsamen Transaktionen vorhanden.</p>
+          <a href="{{ url_for('transactions.create') }}" class="btn btn-sm btn-outline-primary">Transaktion erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

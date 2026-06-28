@@ -1,0 +1,31 @@
+# Core
+Flask==3.1.1
+python-dotenv==1.0.1
+SQLAlchemy==2.0.36
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
+Flask-Login==0.6.3
+Flask-WTF==1.2.2
+WTForms==3.2.1
+email-validator==2.2.0
+Flask-APScheduler==1.13.1
+APScheduler==3.10.4
+
+# Database
+psycopg2-binary==2.9.10
+
+# External data
+yfinance==0.2.48
+
+# Date utilities
+python-dateutil==2.9.0
+
+# German holidays
+holidays==0.62
+
+# Testing
+pytest==8.3.4
+Hypothesis==6.118.8
+factory-boy==3.3.1
+freezegun==1.4.0
+pytest-cov==6.0.0

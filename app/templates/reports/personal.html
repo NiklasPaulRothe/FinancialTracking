@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Persönlicher Bericht – Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Persönlicher Bericht</h1>
+
+<!-- Datumsfilter -->
+<form method="get" action="{{ url_for('reports.personal') }}" class="mb-4">
+    <div class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label for="start" class="form-label">Von</label>
+            <input type="date" id="start" name="start" class="form-control"
+                   value="{{ start_date.isoformat() }}">
+        </div>
+        <div class="col-auto">
+            <label for="end" class="form-label">Bis</label>
+            <input type="date" id="end" name="end" class="form-control"
+                   value="{{ end_date.isoformat() }}">
+        </div>
+        <div class="col-auto">
+            <div class="form-check mt-4">
+                <input type="checkbox" class="form-check-input" id="custom" name="custom" value="1"
+                       {% if request.args.get('custom') == '1' %}checked{% endif %}>
+                <label class="form-check-label" for="custom">Benutzerdefiniert</label>
+            </div>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filtern</button>
+        </div>
+    </div>
+</form>
+
+<p class="text-muted">Zeitraum: {{ start_date.strftime('%d.%m.%Y') }} – {{ end_date.strftime('%d.%m.%Y') }}</p>
+
+{% if not has_data %}
+<div class="alert alert-info" role="alert">
+    Keine Daten für den ausgewählten Zeitraum vorhanden.
+</div>
+{% endif %}
+
+<!-- Einnahmen / Ausgaben Übersicht -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Einnahmen</h5>
+                <p class="card-text fs-4 text-success">{{ "%.2f"|format(income_total|float) }} €</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Ausgaben</h5>
+                <p class="card-text fs-4 text-danger">{{ "%.2f"|format(expense_total|float) }} €</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget vs. Ist -->
+{% if budget_comparisons %}
+<h2>Budget vs. Ist</h2>
+<div class="table-responsive mb-4">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Budget</th>
+                <th>Ausgegeben</th>
+                <th>Limit</th>
+                <th>Auslastung</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in budget_comparisons %}
+            <tr>
+                <td>{{ item.budget.name }}</td>
+                <td>{{ "%.2f"|format(item.spent|float) }} €</td>
+                <td>{{ "%.2f"|format(item.amount|float) }} €</td>
+                <td>
+                    <div class="progress" style="min-width: 100px;">
+                        <div class="progress-bar bg-{{ item.color }}"
+                             role="progressbar"
+                             style="width: {{ [item.percentage_raw, 100]|min }}%;"
+                             aria-valuenow="{{ item.percentage_raw|round(1) }}"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                            {{ item.percentage_raw|round(1) }}%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Kontostand-Verlauf -->
+<h2>Kontostand-Verlauf</h2>
+{% if balance_history %}
+<div id="balance-chart" data-history='{{ balance_history | tojson }}' style="min-height: 300px;">
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Datum</th>
+                <th>Kontostand</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for point in balance_history %}
+            <tr>
+                <td>{{ point.date }}</td>
+                <td>{{ "%.2f"|format(point.total_balance) }} €</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-muted">Keine Kontostandsdaten für den ausgewählten Zeitraum verfügbar.</p>
+{% endif %}
+
+{% endblock %}

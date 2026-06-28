@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Geplante Ausgabe bearbeiten — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<h1>Geplante Ausgabe bearbeiten: {{ expense.name }}</h1>
+
+<form method="POST" action="{{ url_for('planned_expenses.edit', id=expense.id) }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.name.label }}
+        {{ form.name(size=50) }}
+        {% for error in form.name.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <fieldset>
+        <legend>Betrag (optional — entweder genauer Betrag oder Bereich angeben)</legend>
+
+        <div>
+            {{ form.amount_exact.label }}
+            {{ form.amount_exact() }}
+            {% for error in form.amount_exact.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.amount_min.label }}
+            {{ form.amount_min() }}
+            {% for error in form.amount_min.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.amount_max.label }}
+            {{ form.amount_max() }}
+            {% for error in form.amount_max.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+    </fieldset>
+
+    <div>
+        {{ form.scope.label }}
+        {{ form.scope() }}
+        {% for error in form.scope.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.account_id.label }}
+        {{ form.account_id() }}
+        {% for error in form.account_id.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.blocking() }}
+        {{ form.blocking.label }}
+        {% for error in form.blocking.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<p><a href="{{ url_for('planned_expenses.index') }}">Zurück zur Übersicht</a></p>
+{% endblock %}
