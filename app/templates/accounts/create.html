@@ -75,37 +75,6 @@
                         {{ form.visible_to_partner.label(class="form-check-label") }}
                     </div>
 
-                    <div class="card mb-3" id="credit-card-fields" style="border-color: var(--border-color);">
-                        <div class="card-header">
-                            <i class="bi bi-credit-card me-2"></i>Kreditkarten-Details
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    {{ form.credit_limit.label(class="form-label") }}
-                                    {{ form.credit_limit(class="form-control") }}
-                                    {% for error in form.credit_limit.errors %}
-                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    {{ form.statement_closing_day.label(class="form-label") }}
-                                    {{ form.statement_closing_day(class="form-control") }}
-                                    {% for error in form.statement_closing_day.errors %}
-                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    {{ form.payment_due_day.label(class="form-label") }}
-                                    {{ form.payment_due_day(class="form-control") }}
-                                    {% for error in form.payment_due_day.errors %}
-                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary btn-lg") }}
                     </div>

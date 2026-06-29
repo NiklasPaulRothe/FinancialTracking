@@ -84,6 +84,9 @@ class TransactionService:
         # Auto-assign statement_closing_date for credit card transactions (Req 24.2)
         self._assign_statement_closing_date(transaction)
 
+        # Auto-assign due_date for credit card transactions without statement cycle
+        self._assign_due_date(transaction)
+
         # Apply balance impacts
         self._apply_balance_impacts(transaction)
 
@@ -772,6 +775,32 @@ class TransactionService:
         transaction.statement_closing_date = self.assign_statement_closing_date(
             transaction.date, account.statement_closing_day
         )
+
+    def _assign_due_date(self, transaction: Transaction) -> None:
+        """Auto-assign due_date for credit card transactions without statement cycle.
+
+        If the transaction is on a credit card that has no statement_closing_day,
+        set due_date to 30 days after the transaction date.
+        """
+        from datetime import timedelta
+
+        if transaction.account_id is None:
+            return
+
+        account = db.session.get(Account, transaction.account_id)
+        if account is None:
+            return
+
+        if account.type != AccountType.credit_card:
+            return
+
+        # Only set due_date if no statement cycle is configured
+        if account.statement_closing_day is not None:
+            return
+
+        # Default: due 30 days after transaction
+        transaction.due_date = transaction.date + timedelta(days=30)
+        transaction.paid = False
 
     def mark_as_posted(self, transaction_id: int, user: User) -> Transaction:
         """Mark a pending credit card transaction as posted.

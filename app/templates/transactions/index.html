@@ -81,7 +81,7 @@
                 <tbody>
                     {% for txn in transactions %}
                     <tr>
-                        <td>{{ txn.date.strftime('%d.%m.%Y') }}</td>
+                        <td style="color: var(--text-secondary);">{{ txn.date.strftime('%d.%m.%Y') }}</td>
                         <td>
                             {% if txn.type.value == 'income' %}
                                 <span class="badge bg-success">Einnahme</span>
@@ -96,10 +96,10 @@
                         <td class="text-end fw-medium {{ 'text-success' if txn.type.value == 'income' else 'text-danger' }}">
                             {{ "%.2f"|format(txn.amount) }} €
                         </td>
-                        <td>{{ txn.account.name if txn.account else "—" }}</td>
-                        <td>{{ txn.destination_account.name if txn.destination_account else "—" }}</td>
-                        <td>{{ "Persönlich" if txn.scope.value == "personal" else "Gemeinsam" }}</td>
-                        <td>{{ txn.description or "—" }}</td>
+                        <td style="color: var(--text-secondary);">{{ txn.account.name if txn.account else "—" }}</td>
+                        <td style="color: var(--text-secondary);">{{ txn.destination_account.name if txn.destination_account else "—" }}</td>
+                        <td style="color: var(--text-secondary);">{{ "Persönlich" if txn.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td style="color: var(--text-primary);">{{ txn.description or "—" }}</td>
                         <td class="text-end">
                             <a href="{{ url_for('transactions.edit', id=txn.id) }}" class="btn btn-secondary btn-sm me-1">
                                 <i class="bi bi-pencil"></i>

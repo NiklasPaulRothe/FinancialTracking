@@ -9,7 +9,7 @@ Validates: Requirements 23.1, 23.2, 23.3, 23.4, 23.5
 from datetime import date
 from decimal import Decimal
 
-from flask import Blueprint, render_template, session, redirect, url_for, request
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from sqlalchemy import func
 
@@ -63,7 +63,82 @@ def index():
         context = _build_shared_context()
 
     context["view_mode"] = view_mode
+
+    # Income rule for the cycle card
+    income_rule = RecurringRule.query.filter_by(
+        user_id=current_user.id,
+        type=TransactionType.income,
+        active=True,
+        scope=TransactionScope.personal,
+        name="Gehalt",
+    ).first()
+    context["income_rule"] = income_rule
+
+    # Accounts for the income form dropdown
+    personal_giro = Account.query.filter_by(
+        owner_id=current_user.id, active=True, scope=AccountScope.personal, type=AccountType.spending
+    ).all()
+    context["personal_giro_accounts"] = personal_giro
+
     return render_template("dashboard/index.html", **context)
+
+
+@dashboard_bp.route("/set-income", methods=["POST"])
+@login_required
+def set_income():
+    """Create or update the monthly income recurring rule from the dashboard."""
+    from app.services.balance_service import BalanceService
+
+    amount = request.form.get("income_amount", type=float)
+    account_id = request.form.get("income_account_id", type=int)
+
+    if not amount or amount <= 0:
+        flash("Bitte einen gültigen Betrag eingeben.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    if not account_id:
+        flash("Bitte ein Konto auswählen.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    # Calculate next income date
+    balance_service = BalanceService()
+    next_income = balance_service.get_next_income_date(current_user)
+
+    # Check if income rule already exists
+    income_rule = RecurringRule.query.filter_by(
+        user_id=current_user.id,
+        type=TransactionType.income,
+        active=True,
+        scope=TransactionScope.personal,
+        name="Gehalt",
+    ).first()
+
+    if income_rule:
+        # Update existing
+        income_rule.amount = Decimal(str(amount))
+        income_rule.account_id = account_id
+        income_rule.next_due_date = next_income
+        flash("Gehalt erfolgreich aktualisiert.", "success")
+    else:
+        # Create new
+        from app.models.transaction import RecurringFrequency
+        income_rule = RecurringRule(
+            name="Gehalt",
+            type=TransactionType.income,
+            frequency=RecurringFrequency.monthly,
+            interval=1,
+            amount=Decimal(str(amount)),
+            next_due_date=next_income,
+            active=True,
+            scope=TransactionScope.personal,
+            account_id=account_id,
+            user_id=current_user.id,
+        )
+        db.session.add(income_rule)
+        flash("Gehalt erfolgreich eingerichtet.", "success")
+
+    db.session.commit()
+    return redirect(url_for("dashboard.index"))
 
 
 def _build_personal_context() -> dict:
@@ -73,22 +148,47 @@ def _build_personal_context() -> dict:
     """
     user = current_user
 
-    # Total balance across active personal accounts
+    # All active personal accounts
     personal_accounts = Account.query.filter_by(
         owner_id=user.id, active=True, scope=AccountScope.personal
     ).all()
 
-    total_balance = sum(
-        (a.balance for a in personal_accounts), Decimal("0.00")
-    )
+    # Kontostand: Sum of all Giro accounts
+    giro_accounts = [a for a in personal_accounts if a.type == AccountType.spending]
+    kontostand = sum((a.balance for a in giro_accounts), Decimal("0.00"))
 
-    # Available balance (sum of available balances for all personal accounts)
-    available_balance = Decimal("0.00")
-    for account in personal_accounts:
+    # Verfügbar: Sum of available balances for Giro accounts (balance minus blocked)
+    verfuegbar = Decimal("0.00")
+    for account in giro_accounts:
         try:
-            available_balance += _balance_service.get_available_balance(account.id)
+            verfuegbar += _balance_service.get_available_balance(account.id)
         except (ValueError, Exception):
-            available_balance += account.balance
+            verfuegbar += account.balance
+
+    # Vermögen: Everything in every personal account minus personal credits
+    total_all_accounts = sum((a.balance for a in personal_accounts), Decimal("0.00"))
+    active_credits = Credit.query.filter_by(
+        user_id=user.id,
+        status=CreditStatus.active,
+        scope=CreditScope.personal,
+    ).all()
+    total_credit_debt = sum((c.remaining_balance for c in active_credits), Decimal("0.00"))
+    vermoegen = total_all_accounts - total_credit_debt
+
+    # Notgroschen: Sum of all Saving accounts
+    saving_accounts = [a for a in personal_accounts if a.type == AccountType.saving]
+    notgroschen = sum((a.balance for a in saving_accounts), Decimal("0.00"))
+
+    # Rücklagen: Sum of all Reserve accounts
+    reserve_accounts = [a for a in personal_accounts if a.type == AccountType.reserve]
+    ruecklagen = sum((a.balance for a in reserve_accounts), Decimal("0.00"))
+
+    # Schulden: Credit card debt + credit debt
+    credit_cards = [a for a in personal_accounts if a.type == AccountType.credit_card]
+    credit_card_debt = sum(
+        (abs(a.balance) for a in credit_cards if a.balance < 0), Decimal("0.00")
+    )
+    schulden = credit_card_debt + total_credit_debt
 
     # Income cycle progress bar
     income_cycle_progress = _compute_income_cycle_progress(user)
@@ -109,12 +209,16 @@ def _build_personal_context() -> dict:
         .all()
     )
 
-    # Unresolved planned expenses count
-    unresolved_planned_count = PlannedExpense.query.filter_by(
-        user_id=user.id,
-        resolved=False,
-        scope=PlannedExpenseScope.personal,
-    ).count()
+    # Unresolved planned expenses (personal)
+    unresolved_planned = (
+        PlannedExpense.query.filter_by(
+            user_id=user.id,
+            resolved=False,
+            scope=PlannedExpenseScope.personal,
+        )
+        .order_by(PlannedExpense.created_at.asc())
+        .all()
+    )
 
     # Last 5 transactions (personal, sorted by date descending)
     last_transactions = (
@@ -137,16 +241,36 @@ def _build_personal_context() -> dict:
     # Top 3 saving goals by progress percentage
     top_saving_goals = _get_top_saving_goals(user, SavingGoalScope.personal, limit=3)
 
+    # Open credit card payments (unpaid, personal)
+    open_cc_payments = (
+        Transaction.query
+        .join(Account, Transaction.account_id == Account.id)
+        .filter(
+            Transaction.user_id == user.id,
+            Transaction.paid == False,  # noqa: E712
+            Account.type == AccountType.credit_card,
+            Account.scope == AccountScope.personal,
+        )
+        .order_by(Transaction.due_date.asc())
+        .limit(5)
+        .all()
+    )
+
     return {
-        "total_balance": total_balance,
-        "available_balance": available_balance,
+        "kontostand": kontostand,
+        "verfuegbar": verfuegbar,
+        "ruecklagen": ruecklagen,
+        "vermoegen": vermoegen,
+        "notgroschen": notgroschen,
+        "schulden": schulden,
         "income_cycle_progress": income_cycle_progress,
         "top_budgets": top_budgets,
         "next_recurring": next_recurring,
-        "unresolved_planned_count": unresolved_planned_count,
+        "unresolved_planned": unresolved_planned,
         "last_transactions": last_transactions,
         "active_credits": active_credits,
         "top_saving_goals": top_saving_goals,
+        "open_cc_payments": open_cc_payments,
     }
 
 
@@ -157,13 +281,46 @@ def _build_shared_context() -> dict:
     """
     user = current_user
 
-    # Total shared account balance
+    # All active shared accounts
     shared_accounts = Account.query.filter_by(
         scope=AccountScope.shared, active=True
     ).all()
-    shared_balance = sum(
-        (a.balance for a in shared_accounts), Decimal("0.00")
+
+    # Kontostand: Sum of all shared Giro accounts
+    giro_accounts = [a for a in shared_accounts if a.type == AccountType.spending]
+    kontostand = sum((a.balance for a in giro_accounts), Decimal("0.00"))
+
+    # Verfügbar: Available balance on shared Giro accounts
+    verfuegbar = Decimal("0.00")
+    for account in giro_accounts:
+        try:
+            verfuegbar += _balance_service.get_available_balance(account.id)
+        except (ValueError, Exception):
+            verfuegbar += account.balance
+
+    # Vermögen: All shared accounts minus shared credits
+    total_all_shared = sum((a.balance for a in shared_accounts), Decimal("0.00"))
+    shared_credits = Credit.query.filter_by(
+        status=CreditStatus.active,
+        scope=CreditScope.shared,
+    ).all()
+    total_shared_credit_debt = sum((c.remaining_balance for c in shared_credits), Decimal("0.00"))
+    vermoegen = total_all_shared - total_shared_credit_debt
+
+    # Notgroschen: Sum of shared Saving accounts
+    saving_accounts = [a for a in shared_accounts if a.type == AccountType.saving]
+    notgroschen = sum((a.balance for a in saving_accounts), Decimal("0.00"))
+
+    # Rücklagen: Sum of shared Reserve accounts
+    reserve_accounts = [a for a in shared_accounts if a.type == AccountType.reserve]
+    ruecklagen = sum((a.balance for a in reserve_accounts), Decimal("0.00"))
+
+    # Schulden: Shared credit card debt + shared credit debt
+    credit_cards = [a for a in shared_accounts if a.type == AccountType.credit_card]
+    credit_card_debt = sum(
+        (abs(a.balance) for a in credit_cards if a.balance < 0), Decimal("0.00")
     )
+    schulden = credit_card_debt + total_shared_credit_debt
 
     # Shared budget utilisation (top 3 shared budgets by percentage used)
     top_shared_budgets = _get_top_budgets(user, BudgetScope.shared, limit=3)
@@ -194,7 +351,12 @@ def _build_shared_context() -> dict:
     )
 
     return {
-        "shared_balance": shared_balance,
+        "kontostand": kontostand,
+        "verfuegbar": verfuegbar,
+        "ruecklagen": ruecklagen,
+        "vermoegen": vermoegen,
+        "notgroschen": notgroschen,
+        "schulden": schulden,
         "top_shared_budgets": top_shared_budgets,
         "net_settlement": net_settlement,
         "next_shared_recurring": next_shared_recurring,

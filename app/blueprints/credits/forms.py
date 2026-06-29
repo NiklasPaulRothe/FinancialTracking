@@ -139,3 +139,63 @@ class CreditRepayForm(FlaskForm):
         places=2,
     )
     submit = SubmitField("Rückzahlung buchen")
+
+
+
+class CreditEditForm(FlaskForm):
+    """Form for editing an existing credit/loan."""
+
+    name = StringField(
+        "Name",
+        validators=[
+            DataRequired(message="Name ist erforderlich."),
+            Length(min=1, max=100),
+        ],
+    )
+    remaining_balance = DecimalField(
+        "Restschuld",
+        validators=[
+            DataRequired(message="Restschuld ist erforderlich."),
+            NumberRange(
+                min=Decimal("0.00"),
+                max=Decimal("999999999.99"),
+            ),
+        ],
+        places=2,
+    )
+    effective_yearly_rate = DecimalField(
+        "Sollzinssatz (Dezimal, z.B. 0.0659 für 6,59%)",
+        validators=[
+            DataRequired(message="Zinssatz ist erforderlich."),
+            NumberRange(min=Decimal("0.0"), max=Decimal("1.0")),
+        ],
+        places=6,
+    )
+    interest_capitalization_day = IntegerField(
+        "Zinskapitalisierungstag (1–28)",
+        validators=[
+            DataRequired(message="Tag ist erforderlich."),
+            NumberRange(min=1, max=28),
+        ],
+    )
+    account_id = SelectField(
+        "Verknüpftes Konto",
+        coerce=int,
+        validators=[DataRequired()],
+    )
+    scope = SelectField(
+        "Zuordnung",
+        choices=[
+            (CreditScope.personal.value, "Persönlich"),
+            (CreditScope.shared.value, "Gemeinsam"),
+        ],
+        validators=[DataRequired()],
+    )
+    submit = SubmitField("Speichern")
+
+    def __init__(self, *args, accounts=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        account_choices = []
+        if accounts:
+            account_choices = [(a.id, a.name) for a in accounts]
+        self.account_id.choices = account_choices

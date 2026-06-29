@@ -37,8 +37,8 @@
                     <tr>
                         <td class="fw-medium" style="color: var(--text-primary);">{{ expense.name }}</td>
                         <td class="text-end fw-medium text-danger">{{ expense.display_amount }}</td>
-                        <td>{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
-                        <td>{{ expense.account.name if expense.account else "—" }}</td>
+                        <td style="color: var(--text-secondary);">{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td style="color: var(--text-secondary);">{{ expense.account.name if expense.account else "—" }}</td>
                         <td>
                             {% if expense.blocking %}
                                 <span class="badge bg-danger">Ja</span>
@@ -95,9 +95,9 @@
                     {% for expense in resolved %}
                     <tr>
                         <td class="fw-medium" style="color: var(--text-primary);">{{ expense.name }}</td>
-                        <td class="text-end">{{ expense.display_amount }}</td>
-                        <td>{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
-                        <td>{{ expense.account.name if expense.account else "—" }}</td>
+                        <td class="text-end" style="color: var(--text-secondary);">{{ expense.display_amount }}</td>
+                        <td style="color: var(--text-secondary);">{{ "Persönlich" if expense.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td style="color: var(--text-secondary);">{{ expense.account.name if expense.account else "—" }}</td>
                         <td class="text-end">
                             <form method="POST" action="{{ url_for('planned_expenses.delete', id=expense.id) }}" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

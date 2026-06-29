@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}{{ account.name }} — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-bank me-2"></i>{{ account.name }}</h1>
+    <div class="actions">
+        <a href="{{ url_for('accounts.edit', id=account.id) }}" class="btn btn-secondary btn-sm me-1">
+            <i class="bi bi-pencil me-1"></i>Bearbeiten
+        </a>
+        <a href="{{ url_for('accounts.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+    </div>
+</div>
+
+<!-- Account Details -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <span class="section-title d-block">Kontostand</span>
+                    <span class="fs-4 fw-bold {{ 'text-success' if account.balance >= 0 else 'text-danger' }}">
+                        {{ "%.2f"|format(account.balance) }} €
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <span class="section-title d-block">Typ</span>
+                    <span style="color: var(--text-secondary);">
+                        {% if account.type.value == "spending" %}Girokonto
+                        {% elif account.type.value == "saving" %}Sparkonto
+                        {% elif account.type.value == "reserve" %}Rücklagenkonto
+                        {% else %}Kreditkarte{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <span class="section-title d-block">Zuordnung</span>
+                    <span style="color: var(--text-secondary);">
+                        {{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <span class="section-title d-block">Institut</span>
+                    <span style="color: var(--text-secondary);">{{ account.institute or "—" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if open_cc_transactions %}
+<!-- Open Credit Card Payments -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-exclamation-circle me-2"></i>Offene Zahlungen</span>
+        <span class="badge bg-danger">{{ open_cc_transactions|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 12%;">Datum</th>
+                        <th style="width: 25%;">Beschreibung</th>
+                        <th style="width: 13%;" class="text-end">Betrag</th>
+                        <th style="width: 12%;">Fällig am</th>
+                        <th style="width: 38%;" class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in open_cc_transactions %}
+                    <tr>
+                        <td style="color: var(--text-secondary);">{{ txn.date.strftime("%d.%m.%Y") }}</td>
+                        <td style="color: var(--text-primary);">{{ txn.description or "—" }}</td>
+                        <td class="text-end fw-medium text-danger">{{ "%.2f"|format(txn.amount) }} €</td>
+                        <td>
+                            {% if txn.due_date %}
+                            <span style="color: var(--accent);">{{ txn.due_date.strftime("%d.%m.%Y") }}</span>
+                            {% else %}
+                            <span style="color: var(--text-muted);">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('accounts.cc_extend', txn_id=txn.id) }}" style="display:inline;" class="me-1">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="input-group input-group-sm" style="width: auto; display: inline-flex;">
+                                    <input type="number" name="extend_days" min="1" value="30" class="form-control form-control-sm" style="width: 60px;">
+                                    <button type="submit" class="btn btn-secondary btn-sm" title="Verlängern">
+                                        <i class="bi bi-calendar-plus"></i>
+                                    </button>
+                                </div>
+                            </form>
+                            <form method="POST" action="{{ url_for('accounts.cc_pay', txn_id=txn.id) }}" style="display:inline;" class="me-1">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-success btn-sm" title="Bezahlt">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('accounts.cc_to_credit', txn_id=txn.id) }}" style="display:inline;"
+                                  onsubmit="return confirm('In Kredit umwandeln?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-warning btn-sm" title="In Kredit umwandeln">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="border-top: 2px solid var(--border-light);">
+                        <td colspan="2" style="color: var(--text-primary); font-weight: 600;">Gesamt offen</td>
+                        <td class="text-end fw-bold text-danger">{{ "%.2f"|format(open_cc_transactions|sum(attribute='amount')) }} €</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Transactions -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-arrow-left-right me-2"></i>Transaktionen</span>
+        <span class="badge bg-secondary">{{ transactions|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if transactions %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 12%;">Datum</th>
+                        <th style="width: 10%;">Typ</th>
+                        <th style="width: 33%;">Beschreibung</th>
+                        <th style="width: 15%;">Kategorie</th>
+                        <th style="width: 15%;" class="text-end">Betrag</th>
+                        <th style="width: 15%;" class="text-end">Richtung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td style="color: var(--text-secondary);">{{ txn.date.strftime("%d.%m.%Y") }}</td>
+                        <td style="color: var(--text-secondary);">
+                            {% if txn.type.value == "income" %}Einnahme
+                            {% elif txn.type.value == "expense" %}Ausgabe
+                            {% elif txn.type.value == "transfer" %}Umbuchung
+                            {% else %}Kartenzahlung{% endif %}
+                        </td>
+                        <td style="color: var(--text-primary);">{{ txn.description or "—" }}</td>
+                        <td style="color: var(--text-secondary);">
+                            {% if txn.category %}{{ txn.category.name }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end fw-medium">
+                            {% if txn.type.value == "income" or (txn.type.value == "transfer" and txn.destination_account_id == account.id) %}
+                                <span class="text-success">+{{ "%.2f"|format(txn.amount) }} €</span>
+                            {% else %}
+                                <span class="text-danger">-{{ "%.2f"|format(txn.amount) }} €</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end" style="color: var(--text-muted); font-size: 0.8rem;">
+                            {% if txn.type.value == "transfer" %}
+                                {% if txn.account_id == account.id %}
+                                    → {{ txn.destination_account.name if txn.destination_account else "?" }}
+                                {% else %}
+                                    ← {{ txn.account.name if txn.account else "?" }}
+                                {% endif %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-arrow-left-right d-block"></i>
+            <p>Keine Transaktionen für dieses Konto vorhanden.</p>
+            <a href="{{ url_for('transactions.create') }}" class="btn btn-primary btn-sm">Transaktion erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

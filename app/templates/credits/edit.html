@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Kredit bearbeiten: {{ credit.name }} — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-pencil me-2"></i>Kredit bearbeiten: {{ credit.name }}</h1>
+    <div class="actions">
+        <a href="{{ url_for('credits.detail', id=credit.id) }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('credits.edit', id=credit.id) }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.remaining_balance.label(class="form-label") }}
+                            {{ form.remaining_balance(class="form-control") }}
+                            {% for error in form.remaining_balance.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.effective_yearly_rate.label(class="form-label") }}
+                            {{ form.effective_yearly_rate(class="form-control") }}
+                            {% for error in form.effective_yearly_rate.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.interest_capitalization_day.label(class="form-label") }}
+                            {{ form.interest_capitalization_day(class="form-control") }}
+                            {% for error in form.interest_capitalization_day.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.account_id.label(class="form-label") }}
+                            {{ form.account_id(class="form-select") }}
+                            {% for error in form.account_id.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.scope.label(class="form-label") }}
+                        {{ form.scope(class="form-select") }}
+                        {% for error in form.scope.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

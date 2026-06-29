@@ -52,10 +52,16 @@ def index():
     active_rules = [r for r in rules if r.active]
     inactive_rules = [r for r in rules if not r.active]
 
+    # Split active by scope
+    active_personal = [r for r in active_rules if r.scope.value == "personal"]
+    active_shared = [r for r in active_rules if r.scope.value == "shared"]
+
     return render_template(
         "recurring/index.html",
-        active_rules=active_rules,
+        active_personal=active_personal,
+        active_shared=active_shared,
         inactive_rules=inactive_rules,
+        TransactionType=TransactionType,
     )
 
 
@@ -168,3 +174,88 @@ def toggle(id):
         flash("Dauerauftrag deaktiviert.", "success")
 
     return redirect(url_for("recurring.index"))
+
+
+@recurring_bp.route("/splits/<int:id>", methods=["GET", "POST"])
+@login_required
+def splits(id):
+    """Manage category splits for a recurring transfer rule.
+
+    When the recurring rule fires, these splits are copied to the generated
+    transaction as TransactionSplit records (Req 5.7).
+    """
+    from app.models.transaction import RecurringRuleSplit
+    from decimal import Decimal
+
+    rule = db.session.get(RecurringRule, id)
+    if rule is None or rule.user_id != current_user.id:
+        flash("Dauerauftrag nicht gefunden.", "danger")
+        return redirect(url_for("recurring.index"))
+
+    if rule.type != TransactionType.transfer:
+        flash("Splits sind nur für Umbuchungen verfügbar.", "warning")
+        return redirect(url_for("recurring.index"))
+
+    categories = _get_user_categories()
+
+    if request.method == "POST":
+        # Clear existing splits
+        RecurringRuleSplit.query.filter_by(recurring_rule_id=rule.id).delete()
+
+        # Parse new splits from form
+        split_count = int(request.form.get("split_count", 0))
+        total = Decimal("0.00")
+        errors = []
+
+        for i in range(split_count):
+            cat_id = request.form.get(f"split_category_{i}")
+            amount_str = request.form.get(f"split_amount_{i}")
+            desc = request.form.get(f"split_desc_{i}", "").strip()
+
+            if not cat_id or not amount_str:
+                continue
+
+            try:
+                amount = Decimal(amount_str.replace(",", "."))
+                if amount <= 0:
+                    errors.append(f"Split {i+1}: Betrag muss positiv sein.")
+                    continue
+            except Exception:
+                errors.append(f"Split {i+1}: Ungültiger Betrag.")
+                continue
+
+            split = RecurringRuleSplit(
+                recurring_rule_id=rule.id,
+                category_id=int(cat_id),
+                amount=amount,
+                description=desc or None,
+            )
+            db.session.add(split)
+            total += amount
+
+        if errors:
+            db.session.rollback()
+            for err in errors:
+                flash(err, "danger")
+        elif total != rule.amount:
+            db.session.rollback()
+            flash(
+                f"Summe der Splits ({total:.2f} €) stimmt nicht mit dem Betrag ({rule.amount:.2f} €) überein.",
+                "danger",
+            )
+        else:
+            db.session.commit()
+            flash("Splits erfolgreich gespeichert.", "success")
+            return redirect(url_for("recurring.index"))
+
+    # Load existing splits
+    existing_splits = RecurringRuleSplit.query.filter_by(
+        recurring_rule_id=rule.id
+    ).all()
+
+    return render_template(
+        "recurring/splits.html",
+        rule=rule,
+        categories=categories,
+        existing_splits=existing_splits,
+    )

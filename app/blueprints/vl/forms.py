@@ -8,11 +8,13 @@ from decimal import Decimal
 from wtforms import (
     DateField,
     DecimalField,
-    SelectField,
+    StringField,
     SubmitField,
 )
 from wtforms.validators import (
     DataRequired,
+    InputRequired,
+    Length,
     NumberRange,
     Optional,
 )
@@ -22,9 +24,20 @@ from flask_wtf import FlaskForm
 class VLCreateForm(FlaskForm):
     """Form for creating a new VL contract.
 
+    Instead of selecting an existing ETF position, the user provides the
+    ISIN of the ETF. The system will auto-create an ETFPosition if one
+    with that ISIN doesn't already exist for the user.
+
     Validates: Requirement 16.1
     """
 
+    name = StringField(
+        "Vertragsname",
+        validators=[
+            DataRequired(message="Name ist erforderlich."),
+            Length(min=1, max=100, message="Name darf maximal 100 Zeichen lang sein."),
+        ],
+    )
     employer_contribution_monthly = DecimalField(
         "Arbeitgeber-Beitrag (monatlich, €)",
         validators=[
@@ -62,15 +75,51 @@ class VLCreateForm(FlaskForm):
             DataRequired(message="Ende der Sperrfrist ist erforderlich."),
         ],
     )
-    etf_position_id = SelectField(
-        "ETF-Position (optional)",
-        coerce=int,
-        validators=[Optional()],
+    etf_isin = StringField(
+        "ETF ISIN",
+        validators=[
+            Optional(),
+            Length(max=12, message="ISIN darf maximal 12 Zeichen lang sein."),
+        ],
+    )
+    etf_name = StringField(
+        "ETF Name",
+        validators=[
+            Optional(),
+            Length(max=200, message="ETF-Name darf maximal 200 Zeichen lang sein."),
+        ],
+    )
+    etf_ticker = StringField(
+        "ETF Ticker (z.B. EUNL)",
+        validators=[
+            Optional(),
+            Length(max=10, message="Ticker darf maximal 10 Zeichen lang sein."),
+        ],
+    )
+    etf_exchange = StringField(
+        "Börse (z.B. DE, F, L)",
+        validators=[
+            Optional(),
+            Length(max=10, message="Börse darf maximal 10 Zeichen lang sein."),
+        ],
+        default="DE",
+    )
+    etf_price = DecimalField(
+        "Aktueller Kurs (€, falls Kursabfrage fehlschlägt)",
+        validators=[
+            Optional(),
+            NumberRange(
+                min=Decimal("0.0001"),
+                max=Decimal("999999.9999"),
+                message="Kurs muss positiv sein.",
+            ),
+        ],
+        places=4,
     )
     sparzulage_rate = DecimalField(
         "Arbeitnehmer-Sparzulage (%)",
         validators=[
-            DataRequired(message="Sparzulage-Rate ist erforderlich."),
+            InputRequired(message="Sparzulage-Rate ist erforderlich."),
             NumberRange(
                 min=Decimal("0.0000"),
                 max=Decimal("1.0000"),
@@ -78,35 +127,19 @@ class VLCreateForm(FlaskForm):
             ),
         ],
         places=4,
-        default=Decimal("0.2000"),
+        default=Decimal("0.0000"),
     )
     annual_eligible_max = DecimalField(
         "Max. förderfähiger Jahresbetrag (€)",
         validators=[
-            DataRequired(message="Förderfähiger Jahresbetrag ist erforderlich."),
+            InputRequired(message="Förderfähiger Jahresbetrag ist erforderlich."),
             NumberRange(
-                min=Decimal("0.01"),
+                min=Decimal("0.00"),
                 max=Decimal("99999.99"),
-                message="Förderfähiger Betrag muss zwischen 0,01 und 99.999,99 € liegen.",
+                message="Förderfähiger Betrag muss zwischen 0,00 und 99.999,99 € liegen.",
             ),
         ],
         places=2,
-        default=Decimal("400.00"),
+        default=Decimal("0.00"),
     )
     submit = SubmitField("VL-Vertrag anlegen")
-
-    def __init__(self, *args, etf_positions=None, **kwargs):
-        """Initialize form with dynamic ETF position choices.
-
-        Args:
-            etf_positions: List of ETFPosition objects for the dropdown.
-        """
-        super().__init__(*args, **kwargs)
-
-        position_choices = [(0, "— Keine ETF-Position —")]
-        if etf_positions:
-            position_choices += [
-                (p.id, f"{p.name} ({p.ticker}.{p.exchange_suffix})")
-                for p in etf_positions
-            ]
-        self.etf_position_id.choices = position_choices

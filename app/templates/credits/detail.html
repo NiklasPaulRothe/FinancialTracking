@@ -3,165 +3,144 @@
 {% block title %}Kredit: {{ credit.name }} — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Kredit: {{ credit.name }}</h1>
-
-<div class="credit-detail">
-    <p><strong>Zuordnung:</strong> {{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</p>
-    <p><strong>Status:</strong>
+<div class="page-header">
+    <h1><i class="bi bi-credit-card-2-front me-2"></i>{{ credit.name }}</h1>
+    <div class="actions">
+        <a href="{{ url_for('credits.edit', id=credit.id) }}" class="btn btn-secondary btn-sm me-1">
+            <i class="bi bi-pencil me-1"></i>Bearbeiten
+        </a>
         {% if credit.status.value == "active" %}
-            <span class="badge-active">Aktiv</span>
-        {% else %}
-            <span class="badge-completed">Getilgt</span>
+        <a href="{{ url_for('credits.repay', id=credit.id) }}" class="btn btn-primary btn-sm me-1">
+            <i class="bi bi-cash-stack me-1"></i>Zahlung buchen
+        </a>
         {% endif %}
-    </p>
-    <p><strong>Darlehensbetrag:</strong> {{ "%.2f"|format(credit.principal) }} €</p>
-    <p><strong>Restschuld:</strong> {{ "%.2f"|format(credit.remaining_balance) }} €</p>
-    <p><strong>Aufgelaufene Zinsen:</strong> {{ "%.2f"|format(credit.accrued_interest) }} €</p>
-    <p><strong>Effektiver Jahreszins:</strong> {{ "%.2f"|format(credit.effective_yearly_rate * 100) }} %</p>
-    <p><strong>Auszahlungsdatum:</strong> {{ credit.disbursement_date.strftime("%d.%m.%Y") }}</p>
-    <p><strong>Zinskapitalisierungstag:</strong> {{ credit.interest_capitalization_day }}. des Monats</p>
-    <p><strong>Verknüpftes Konto:</strong> {{ credit.account.name if credit.account else "—" }}</p>
+        <a href="{{ url_for('credits.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+    </div>
 </div>
 
-{% if credit.status.value == "active" %}
-<section>
-    <h2>Rückzahlung buchen</h2>
-    <form method="POST" action="{{ url_for('credits.repay', id=credit.id) }}" novalidate>
-        {{ repay_form.hidden_tag() }}
-
-        <div>
-            {{ repay_form.amount.label }}
-            {{ repay_form.amount() }}
-            {% for error in repay_form.amount.errors %}
-                <span class="error">{{ error }}</span>
-            {% endfor %}
+<!-- Credit Details -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <span class="section-title d-block">Restschuld</span>
+                <span class="fs-4 fw-bold text-danger">{{ "%.2f"|format(credit.remaining_balance) }} €</span>
+            </div>
+            <div class="col-md-3 mb-3">
+                <span class="section-title d-block">Aufgelaufene Zinsen</span>
+                <span class="fw-medium" style="color: var(--text-primary);">{{ "%.2f"|format(credit.accrued_interest) }} €</span>
+            </div>
+            <div class="col-md-3 mb-3">
+                <span class="section-title d-block">Eff. Jahreszins</span>
+                <span style="color: var(--text-secondary);">{{ "%.2f"|format(credit.effective_yearly_rate * 100) }}%</span>
+            </div>
+            <div class="col-md-3 mb-3">
+                <span class="section-title d-block">Status</span>
+                {% if credit.status.value == "active" %}
+                <span class="badge bg-success">Aktiv</span>
+                {% else %}
+                <span class="badge bg-secondary">Getilgt</span>
+                {% endif %}
+            </div>
         </div>
-
-        <div>
-            {{ repay_form.submit() }}
+        <div class="row">
+            <div class="col-md-3 mb-2">
+                <span class="section-title d-block">Darlehensbetrag</span>
+                <span style="color: var(--text-secondary);">{{ "%.2f"|format(credit.principal) }} €</span>
+            </div>
+            <div class="col-md-3 mb-2">
+                <span class="section-title d-block">Auszahlungsdatum</span>
+                <span style="color: var(--text-secondary);">{{ credit.disbursement_date.strftime("%d.%m.%Y") }}</span>
+            </div>
+            <div class="col-md-3 mb-2">
+                <span class="section-title d-block">Kapitalisierungstag</span>
+                <span style="color: var(--text-secondary);">{{ credit.interest_capitalization_day }}. des Monats</span>
+            </div>
+            <div class="col-md-3 mb-2">
+                <span class="section-title d-block">Konto</span>
+                <span style="color: var(--text-secondary);">{{ credit.account.name if credit.account else "—" }}</span>
+            </div>
         </div>
-    </form>
-</section>
-{% endif %}
+    </div>
+</div>
 
-<section>
-    <h2>Zahlungshistorie</h2>
-    {% if credit.payments %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Datum</th>
-                    <th>Gesamtbetrag</th>
-                    <th>Zinsanteil</th>
-                    <th>Tilgungsanteil</th>
-                    <th>Manuelle Korrektur</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for payment in credit.payments %}
-                <tr>
-                    <td>{{ payment.created_at.strftime("%d.%m.%Y") }}</td>
-                    <td>{{ "%.2f"|format(payment.total_amount) }} €</td>
-                    <td>{{ "%.2f"|format(payment.interest_portion) }} €</td>
-                    <td>{{ "%.2f"|format(payment.principal_portion) }} €</td>
-                    <td>{{ "Ja" if payment.manual_correction else "Nein" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Noch keine Zahlungen vorhanden.</p>
-    {% endif %}
-</section>
-
-<section>
-    <h2>Prognose</h2>
-    {% if forecast %}
-        <div id="forecast-chart">
-            <canvas id="creditForecastChart" width="800" height="300"></canvas>
-        </div>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                var canvas = document.getElementById('creditForecastChart');
-                if (!canvas || !canvas.getContext) return;
-
-                var ctx = canvas.getContext('2d');
-                var data = [
-                    {% for entry in forecast[:24] %}
-                    { month: {{ entry.month_offset }}, balance: {{ entry.projected_balance }}, interest: {{ entry.projected_interest }} }{{ "," if not loop.last }}
-                    {% endfor %}
-                ];
-
-                if (data.length === 0) return;
-
-                var maxBalance = Math.max.apply(null, data.map(function(d) { return d.balance; }));
-                var chartWidth = canvas.width - 80;
-                var chartHeight = canvas.height - 60;
-                var barWidth = chartWidth / data.length;
-
-                // Draw axes
-                ctx.strokeStyle = '#333';
-                ctx.beginPath();
-                ctx.moveTo(60, 10);
-                ctx.lineTo(60, chartHeight + 10);
-                ctx.lineTo(canvas.width - 10, chartHeight + 10);
-                ctx.stroke();
-
-                // Draw bars (projected balance)
-                ctx.fillStyle = '#4a90d9';
-                for (var i = 0; i < data.length; i++) {
-                    var barHeight = (data[i].balance / maxBalance) * chartHeight;
-                    var x = 60 + i * barWidth + 2;
-                    var y = chartHeight + 10 - barHeight;
-                    ctx.fillRect(x, y, barWidth - 4, barHeight);
-                }
-
-                // Draw labels
-                ctx.fillStyle = '#333';
-                ctx.font = '11px sans-serif';
-                ctx.textAlign = 'center';
-                for (var i = 0; i < data.length; i += 3) {
-                    var x = 60 + i * barWidth + barWidth / 2;
-                    ctx.fillText('M' + data[i].month, x, chartHeight + 28);
-                }
-
-                // Y-axis labels
-                ctx.textAlign = 'right';
-                ctx.fillText(maxBalance.toFixed(0) + ' €', 55, 18);
-                ctx.fillText('0 €', 55, chartHeight + 10);
-
-                // Title
-                ctx.textAlign = 'center';
-                ctx.font = '13px sans-serif';
-                ctx.fillText('Prognostizierte Restschuld (nächste 24 Monate)', canvas.width / 2, canvas.height - 5);
-            });
-        </script>
-
-        <details>
-            <summary>Prognosedaten anzeigen</summary>
-            <table>
+<!-- Payment History -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2"></i>Zahlungshistorie</span>
+        <span class="badge bg-secondary">{{ credit.payments|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if credit.payments %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Monat</th>
-                        <th>Prognostizierte Restschuld</th>
-                        <th>Prognostizierte Zinsen</th>
+                        <th style="width: 20%;">Datum</th>
+                        <th style="width: 20%;" class="text-end">Gesamt</th>
+                        <th style="width: 20%;" class="text-end">Zinsanteil</th>
+                        <th style="width: 20%;" class="text-end">Tilgung</th>
+                        <th style="width: 20%;">Korrektur</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in credit.payments %}
+                    <tr>
+                        <td style="color: var(--text-secondary);">{{ payment.created_at.strftime("%d.%m.%Y") }}</td>
+                        <td class="text-end fw-medium" style="color: var(--text-primary);">{{ "%.2f"|format(payment.total_amount) }} €</td>
+                        <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(payment.interest_portion) }} €</td>
+                        <td class="text-end text-success">{{ "%.2f"|format(payment.principal_portion) }} €</td>
+                        <td style="color: var(--text-muted);">{{ "Ja" if payment.manual_correction else "—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-clock-history d-block"></i>
+            <p>Noch keine Zahlungen vorhanden.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Forecast -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-graph-down me-2"></i>Prognose</span>
+        {% if forecast %}<span class="badge bg-secondary">{{ forecast|length }} Monate</span>{% endif %}
+    </div>
+    <div class="card-body p-0">
+        {% if forecast %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 33%;">Monat</th>
+                        <th style="width: 33%;" class="text-end">Restschuld</th>
+                        <th style="width: 33%;" class="text-end">Zinsen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for entry in forecast[:24] %}
                     <tr>
-                        <td>+{{ entry.month_offset }} Monate</td>
-                        <td>{{ "%.2f"|format(entry.projected_balance) }} €</td>
-                        <td>{{ "%.2f"|format(entry.projected_interest) }} €</td>
+                        <td style="color: var(--text-secondary);">+{{ entry.month_offset }} Monate</td>
+                        <td class="text-end fw-medium text-danger">{{ "%.2f"|format(entry.projected_balance) }} €</td>
+                        <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(entry.projected_interest) }} €</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-        </details>
-    {% else %}
-        <p>Keine Prognosedaten verfügbar.</p>
-    {% endif %}
-</section>
-
-<p><a href="{{ url_for('credits.index') }}">Zurück zur Übersicht</a></p>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-graph-down d-block"></i>
+            <p>Keine Prognosedaten verfügbar.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

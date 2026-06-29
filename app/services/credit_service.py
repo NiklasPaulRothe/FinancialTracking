@@ -146,8 +146,8 @@ class CreditService:
 
         Validates: Requirement 11.2
 
-        Formula: daily_rate = (1 + effective_yearly_rate)^(1/365) - 1
-                 daily_interest = remaining_balance * daily_rate
+        Formula (nominal/simple): daily_interest = remaining_balance * rate / 365
+        This matches how German banks calculate Sollzins on consumer credits.
 
         Args:
             credit: The credit to accrue interest on.
@@ -161,14 +161,10 @@ class CreditService:
         if credit.remaining_balance <= 0 or credit.effective_yearly_rate <= 0:
             return Decimal("0.000000")
 
-        # daily_rate = (1 + effective_yearly_rate)^(1/365) - 1
-        one = Decimal("1")
-        exponent = one / Decimal("365")
-        base = one + credit.effective_yearly_rate
-        # Use Python's Decimal power for precision
-        daily_rate = base ** exponent - one
-
-        daily_interest = credit.remaining_balance * daily_rate
+        # Simple nominal interest: balance * rate / 365
+        daily_interest = (
+            credit.remaining_balance * credit.effective_yearly_rate / Decimal("365")
+        )
         # Round to 6 decimal places for storage precision
         daily_interest = daily_interest.quantize(
             Decimal("0.000001"), rounding=ROUND_HALF_UP

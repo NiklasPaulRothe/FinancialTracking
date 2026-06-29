@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Splits — {{ rule.name }} — Haushaltsbuch{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-pie-chart me-2"></i>Splits: {{ rule.name }}</h1>
+    <div class="actions">
+        <a href="{{ url_for('recurring.index') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+        <!-- Info -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <span style="color: var(--text-secondary);">Gesamtbetrag</span>
+                    <span class="fw-bold" style="color: var(--text-primary);">{{ "%.2f"|format(rule.amount) }} €</span>
+                </div>
+                <small class="form-text">Die Summe aller Splits muss exakt dem Gesamtbetrag entsprechen.</small>
+            </div>
+        </div>
+
+        <!-- Splits Form -->
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list-ul me-2"></i>Kategorie-Splits konfigurieren
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('recurring.splits', id=rule.id) }}" id="splitsForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="split_count" id="splitCount" value="{{ existing_splits|length or 2 }}">
+
+                    <div id="splitsContainer">
+                        {% if existing_splits %}
+                            {% for split in existing_splits %}
+                            <div class="split-row row g-2 mb-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label" style="font-size: 0.75rem;">Kategorie</label>
+                                    <select name="split_category_{{ loop.index0 }}" class="form-select form-select-sm" required>
+                                        <option value="">— Wählen —</option>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat.id }}" {{ 'selected' if cat.id == split.category_id else '' }}>{{ cat.name }} ({{ cat.scope }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size: 0.75rem;">Betrag (€)</label>
+                                    <input type="number" step="0.01" min="0.01" name="split_amount_{{ loop.index0 }}"
+                                           class="form-control form-control-sm" value="{{ '%.2f'|format(split.amount) }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" style="font-size: 0.75rem;">Beschreibung</label>
+                                    <input type="text" name="split_desc_{{ loop.index0 }}" class="form-control form-control-sm"
+                                           value="{{ split.description or '' }}" maxlength="255" placeholder="Optional">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeSplit(this)">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            {% for i in range(2) %}
+                            <div class="split-row row g-2 mb-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label" style="font-size: 0.75rem;">Kategorie</label>
+                                    <select name="split_category_{{ i }}" class="form-select form-select-sm" required>
+                                        <option value="">— Wählen —</option>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat.id }}">{{ cat.name }} ({{ cat.scope }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size: 0.75rem;">Betrag (€)</label>
+                                    <input type="number" step="0.01" min="0.01" name="split_amount_{{ i }}"
+                                           class="form-control form-control-sm" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" style="font-size: 0.75rem;">Beschreibung</label>
+                                    <input type="text" name="split_desc_{{ i }}" class="form-control form-control-sm"
+                                           maxlength="255" placeholder="Optional">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeSplit(this)">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addSplit()">
+                            <i class="bi bi-plus-lg me-1"></i>Split hinzufügen
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Splits speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let splitIndex = {{ existing_splits|length or 2 }};
+
+function addSplit() {
+    const container = document.getElementById('splitsContainer');
+    const html = `
+        <div class="split-row row g-2 mb-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" style="font-size: 0.75rem;">Kategorie</label>
+                <select name="split_category_${splitIndex}" class="form-select form-select-sm" required>
+                    <option value="">— Wählen —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }} ({{ cat.scope }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" style="font-size: 0.75rem;">Betrag (€)</label>
+                <input type="number" step="0.01" min="0.01" name="split_amount_${splitIndex}"
+                       class="form-control form-control-sm" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" style="font-size: 0.75rem;">Beschreibung</label>
+                <input type="text" name="split_desc_${splitIndex}" class="form-control form-control-sm"
+                       maxlength="255" placeholder="Optional">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeSplit(this)">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    splitIndex++;
+    updateSplitCount();
+}
+
+function removeSplit(btn) {
+    const rows = document.querySelectorAll('.split-row');
+    if (rows.length <= 2) {
+        alert('Mindestens 2 Splits sind erforderlich.');
+        return;
+    }
+    btn.closest('.split-row').remove();
+    reindexSplits();
+}
+
+function reindexSplits() {
+    const rows = document.querySelectorAll('.split-row');
+    rows.forEach((row, i) => {
+        row.querySelector('select').name = `split_category_${i}`;
+        row.querySelectorAll('input[type="number"]')[0].name = `split_amount_${i}`;
+        row.querySelectorAll('input[type="text"]')[0].name = `split_desc_${i}`;
+    });
+    splitIndex = rows.length;
+    updateSplitCount();
+}
+
+function updateSplitCount() {
+    document.getElementById('splitCount').value = document.querySelectorAll('.split-row').length;
+}
+
+// Update count on submit
+document.getElementById('splitsForm').addEventListener('submit', updateSplitCount);
+</script>
+{% endblock %}

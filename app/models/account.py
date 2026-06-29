@@ -18,6 +18,7 @@ class AccountType(enum.Enum):
 
     spending = "spending"
     saving = "saving"
+    reserve = "reserve"
     credit_card = "credit_card"
 
 

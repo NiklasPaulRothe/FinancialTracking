@@ -57,9 +57,15 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <a href="{{ url_for('vl.detail', id=contract.id) }}" class="btn btn-secondary btn-sm">
+                            <a href="{{ url_for('vl.detail', id=contract.id) }}" class="btn btn-secondary btn-sm me-1">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            <form method="POST" action="{{ url_for('vl.delete', id=contract.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('VL-Vertrag und alle zugehörigen Daten wirklich löschen?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}

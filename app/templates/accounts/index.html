@@ -3,6 +3,107 @@
 {% block title %}Konten — Haushaltsbuch{% endblock %}
 
 {% block content %}
+
+{% macro account_table(accounts) %}
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th style="width: 25%;">Name</th>
+                <th style="width: 20%;">Institut</th>
+                <th style="width: 18%;" class="text-end">Kontostand</th>
+                <th style="width: 18%;" class="text-end">Verfügbar</th>
+                <th style="width: 19%;" class="text-end">Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for account in accounts %}
+            <tr>
+                <td style="color: var(--text-primary); font-weight: 500;">
+                    <a href="{{ url_for('accounts.detail', id=account.id) }}" style="color: var(--text-primary); text-decoration: none; border-bottom: 1px dashed var(--border-light);">
+                        {{ account.name }}
+                    </a>
+                </td>
+                <td style="color: var(--text-secondary);">{{ account.institute or "—" }}</td>
+                <td class="text-end fw-medium {{ 'text-success' if account.balance >= 0 else 'text-danger' }}">
+                    {{ "%.2f"|format(account.balance) }} €
+                </td>
+                <td class="text-end" style="color: var(--text-secondary);">
+                    {% set avail = available_balances.get(account.id, account.balance) %}
+                    <span class="{{ 'text-success' if avail >= 0 else 'text-danger' }}">{{ "%.2f"|format(avail) }} €</span>
+                </td>
+                <td class="text-end">
+                    <a href="{{ url_for('accounts.edit', id=account.id) }}" class="btn btn-secondary btn-sm me-1">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Konto wirklich löschen?')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top: 2px solid var(--border-light);">
+                <td style="color: var(--text-primary); font-weight: 600;">Summe</td>
+                <td></td>
+                {% set total = accounts|sum(attribute='balance') %}
+                <td class="text-end fw-bold {{ 'text-success' if total >= 0 else 'text-danger' }}">
+                    {{ "%.2f"|format(total) }} €
+                </td>
+                {% set total_avail = [] %}
+                {% for a in accounts %}{% if total_avail.append(available_balances.get(a.id, a.balance)) %}{% endif %}{% endfor %}
+                {% set avail_sum = total_avail|sum %}
+                <td class="text-end fw-bold {{ 'text-success' if avail_sum >= 0 else 'text-danger' }}">
+                    {{ "%.2f"|format(avail_sum) }} €
+                </td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endmacro %}
+
+{% macro account_box(title, icon, spending, saving, reserve) %}
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-{{ icon }} me-2"></i>{{ title }}</span>
+        <span class="badge bg-secondary">{{ spending|length + saving|length + reserve|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if spending or saving or reserve %}
+            {% if spending %}
+            <div class="px-3 pt-3 pb-1">
+                <span class="section-title">Girokonten</span>
+            </div>
+            {{ account_table(spending) }}
+            {% endif %}
+            {% if reserve %}
+            <div class="px-3 pt-3 pb-1">
+                <span class="section-title">Rücklagenkonten</span>
+            </div>
+            {{ account_table(reserve) }}
+            {% endif %}
+            {% if saving %}
+            <div class="px-3 pt-3 pb-1">
+                <span class="section-title">Sparkonten</span>
+            </div>
+            {{ account_table(saving) }}
+            {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-{{ icon }} d-block"></i>
+            <p>Keine Konten vorhanden.</p>
+            <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">Konto erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
 <div class="page-header">
     <h1><i class="bi bi-bank me-2"></i>Konten</h1>
     <div class="actions">
@@ -12,117 +113,31 @@
     </div>
 </div>
 
-<!-- Giro- und Sparkonten -->
+{{ account_box("Persönliche Konten", "person", personal_spending, personal_saving, personal_reserve) }}
+{{ account_box("Gemeinsame Konten", "people", shared_spending, shared_saving, shared_reserve) }}
+
+<!-- Kreditkarten -->
 <div class="card mb-4">
     <div class="card-header d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-wallet2 me-2"></i>Giro- und Sparkonten</span>
-        <span class="badge bg-secondary">{{ spending_saving|length }}</span>
+        <span><i class="bi bi-credit-card me-2"></i>Kreditkarten</span>
+        <div>
+            <span class="badge bg-secondary me-2">{{ credit_cards|length }}</span>
+            <a href="{{ url_for('accounts.create_credit_card') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Neue Kreditkarte
+            </a>
+        </div>
     </div>
     <div class="card-body p-0">
-        {% if spending_saving %}
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Typ</th>
-                        <th>Zuordnung</th>
-                        <th class="text-end">Kontostand</th>
-                        <th>Institut</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for account in spending_saving %}
-                    <tr>
-                        <td class="fw-medium" style="color: var(--text-primary);">{{ account.name }}</td>
-                        <td>
-                            <span class="badge bg-primary">{{ "Girokonto" if account.type.value == "spending" else "Sparkonto" }}</span>
-                        </td>
-                        <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
-                        <td class="text-end fw-medium {{ 'text-success' if account.balance >= 0 else 'text-danger' }}">
-                            {{ "%.2f"|format(account.balance) }} €
-                        </td>
-                        <td>{{ account.institute or "—" }}</td>
-                        <td class="text-end">
-                            <a href="{{ url_for('accounts.edit', id=account.id) }}" class="btn btn-secondary btn-sm me-1">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Konto wirklich löschen?')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% if credit_cards %}
+        {{ account_table(credit_cards) }}
         {% else %}
         <div class="empty-state">
-            <i class="bi bi-wallet2 d-block"></i>
-            <p>Keine Giro- oder Sparkonten vorhanden.</p>
-            <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">Konto erstellen</a>
+            <i class="bi bi-credit-card d-block"></i>
+            <p>Keine Kreditkarten vorhanden.</p>
+            <a href="{{ url_for('accounts.create_credit_card') }}" class="btn btn-primary btn-sm">Kreditkarte hinzufügen</a>
         </div>
         {% endif %}
     </div>
 </div>
 
-<!-- Kreditkarten -->
-<div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-credit-card me-2"></i>Kreditkarten</span>
-        <span class="badge bg-secondary">{{ credit_cards|length }}</span>
-    </div>
-    <div class="card-body p-0">
-        {% if credit_cards %}
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Zuordnung</th>
-                        <th class="text-end">Kontostand</th>
-                        <th class="text-end">Kreditlimit</th>
-                        <th>Institut</th>
-                        <th class="text-end">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for account in credit_cards %}
-                    <tr>
-                        <td class="fw-medium" style="color: var(--text-primary);">{{ account.name }}</td>
-                        <td>{{ "Persönlich" if account.scope.value == "personal" else "Gemeinsam" }}</td>
-                        <td class="text-end fw-medium text-danger">
-                            {{ "%.2f"|format(account.balance) }} €
-                        </td>
-                        <td class="text-end">{{ "%.2f"|format(account.credit_limit) if account.credit_limit else "—" }} €</td>
-                        <td>{{ account.institute or "—" }}</td>
-                        <td class="text-end">
-                            <a href="{{ url_for('accounts.edit', id=account.id) }}" class="btn btn-secondary btn-sm me-1">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <form method="POST" action="{{ url_for('accounts.delete', id=account.id) }}" style="display:inline;">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Konto wirklich löschen?')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="bi bi-credit-card d-block"></i>
-            <p>Keine Kreditkarten vorhanden.</p>
-            <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">Kreditkarte hinzufügen</a>
-        </div>
-        {% endif %}
-    </div>
-</div>
 {% endblock %}

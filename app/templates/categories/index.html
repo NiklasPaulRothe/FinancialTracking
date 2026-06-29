@@ -3,75 +3,90 @@
 {% block title %}Kategorien – Haushaltsbuch{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Kategorien verwalten</h2>
+<div class="page-header">
+    <h1><i class="bi bi-tag me-2"></i>Kategorien</h1>
+</div>
 
-    {# Create form #}
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Neue Kategorie erstellen</h5>
-            <form method="POST" action="{{ url_for('categories.create') }}" class="row g-3">
-                <div class="col-md-4">
-                    <label for="name" class="form-label">Name</label>
-                    <input type="text" class="form-control" id="name" name="name"
-                           maxlength="50" required placeholder="Kategoriename">
-                </div>
-                <div class="col-md-3">
-                    <label for="scope" class="form-label">Bereich</label>
-                    <select class="form-select" id="scope" name="scope">
-                        <option value="personal">Persönlich</option>
-                        <option value="shared">Gemeinsam</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="icon" class="form-label">Icon (optional)</label>
-                    <input type="text" class="form-control" id="icon" name="icon"
-                           maxlength="50" placeholder="z.B. 🏠">
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Erstellen</button>
-                </div>
-            </form>
+<!-- Create form -->
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-plus-circle me-2"></i>Neue Kategorie erstellen</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('categories.create') }}" class="row g-3 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-4">
+                <label for="name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="name" name="name"
+                       maxlength="50" required placeholder="Kategoriename">
+            </div>
+            <div class="col-md-3">
+                <label for="scope" class="form-label">Bereich</label>
+                <select class="form-select" id="scope" name="scope">
+                    <option value="personal">Persönlich</option>
+                    <option value="shared">Gemeinsam</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="icon" class="form-label">Icon (optional)</label>
+                <input type="text" class="form-control" id="icon" name="icon"
+                       maxlength="50" placeholder="z.B. 🏠">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Erstellen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Category list -->
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-tag me-2"></i>Alle Kategorien</span>
+        <span class="badge bg-secondary">{{ categories|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if categories %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 35%;">Name</th>
+                        <th style="width: 25%;">Bereich</th>
+                        <th style="width: 20%;">Icon</th>
+                        <th style="width: 20%;" class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in categories %}
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ category.name }}</td>
+                        <td>
+                            {% if category.scope == 'personal' %}
+                            <span class="badge bg-primary">Persönlich</span>
+                            {% else %}
+                            <span class="badge bg-success">Gemeinsam</span>
+                            {% endif %}
+                        </td>
+                        <td style="color: var(--text-secondary);">{{ category.icon or '–' }}</td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('categories.delete', id=category.id) }}" style="display:inline;"
+                                  onsubmit="return confirm('Kategorie wirklich löschen?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-tag d-block"></i>
+            <p>Keine Kategorien vorhanden. Erstellen Sie Ihre erste Kategorie oben.</p>
+        </div>
+        {% endif %}
     </div>
-
-    {# Category list #}
-    {% if categories %}
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Bereich</th>
-                    <th>Icon</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for category in categories %}
-                <tr>
-                    <td>{{ category.name }}</td>
-                    <td>
-                        {% if category.scope == 'personal' %}
-                        <span class="badge bg-info">Persönlich</span>
-                        {% else %}
-                        <span class="badge bg-success">Gemeinsam</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ category.icon or '–' }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('categories.delete', id=category.id) }}"
-                              onsubmit="return confirm('Kategorie wirklich löschen? Transaktionen werden nicht gelöscht, aber die Kategorie-Zuordnung wird entfernt.');">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p class="text-muted">Keine Kategorien vorhanden. Erstellen Sie Ihre erste Kategorie oben.</p>
-    {% endif %}
 </div>
 {% endblock %}

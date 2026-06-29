@@ -46,7 +46,7 @@ class AccountCreateForm(FlaskForm):
         choices=[
             (AccountType.spending.value, "Girokonto"),
             (AccountType.saving.value, "Sparkonto"),
-            (AccountType.credit_card.value, "Kreditkarte"),
+            (AccountType.reserve.value, "Rücklagenkonto"),
         ],
         validators=[DataRequired(message="Kontotyp ist erforderlich.")],
     )
@@ -182,6 +182,24 @@ class AccountEditForm(FlaskForm):
             ),
         ],
     )
+    type = SelectField(
+        "Kontotyp",
+        choices=[
+            (AccountType.spending.value, "Girokonto"),
+            (AccountType.saving.value, "Sparkonto"),
+            (AccountType.reserve.value, "Rücklagenkonto"),
+            (AccountType.credit_card.value, "Kreditkarte"),
+        ],
+        validators=[DataRequired(message="Kontotyp ist erforderlich.")],
+    )
+    scope = SelectField(
+        "Zuordnung",
+        choices=[
+            (AccountScope.personal.value, "Persönlich"),
+            (AccountScope.shared.value, "Gemeinsam"),
+        ],
+        validators=[DataRequired(message="Zuordnung ist erforderlich.")],
+    )
     institute = StringField(
         "Institut",
         validators=[
@@ -229,3 +247,67 @@ class AccountEditForm(FlaskForm):
         ],
     )
     submit = SubmitField("Speichern")
+
+
+
+class CreditCardCreateForm(FlaskForm):
+    """Form for creating a new credit card account.
+
+    Simplified form: name, limit, institute, scope.
+    Abrechnungstag and Fälligkeitstag are optional.
+    """
+
+    name = StringField(
+        "Name",
+        validators=[
+            DataRequired(message="Name ist erforderlich."),
+            Length(min=1, max=50),
+        ],
+    )
+    credit_limit = DecimalField(
+        "Kreditlimit (€)",
+        validators=[
+            DataRequired(message="Kreditlimit ist erforderlich."),
+            NumberRange(
+                min=Decimal("0.01"),
+                max=Decimal("999999999.99"),
+                message="Kreditlimit muss zwischen 0,01 und 999.999.999,99 liegen.",
+            ),
+        ],
+        places=2,
+    )
+    institute = StringField(
+        "Institut",
+        validators=[
+            Length(max=100),
+        ],
+    )
+    scope = SelectField(
+        "Zuordnung",
+        choices=[
+            (AccountScope.personal.value, "Persönlich"),
+            (AccountScope.shared.value, "Gemeinsam"),
+        ],
+        validators=[DataRequired()],
+    )
+    statement_closing_day = IntegerField(
+        "Abrechnungstag (optional, 1–28)",
+        validators=[
+            Optional(),
+            NumberRange(min=1, max=28),
+        ],
+    )
+    payment_due_day = IntegerField(
+        "Fälligkeitstag (optional, 1–28)",
+        validators=[
+            Optional(),
+            NumberRange(min=1, max=28),
+        ],
+    )
+    starting_balance = DecimalField(
+        "Aktueller Saldo (negativ = Schulden)",
+        validators=[Optional()],
+        places=2,
+        default=Decimal("0.00"),
+    )
+    submit = SubmitField("Kreditkarte erstellen")

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Konto bearbeiten — Haushaltsbuch{% endblock %}
+{% block title %}Kreditkarte erstellen — Haushaltsbuch{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1><i class="bi bi-pencil me-2"></i>Konto bearbeiten: {{ account.name }}</h1>
+    <h1><i class="bi bi-plus-circle me-2"></i>Neue Kreditkarte</h1>
     <div class="actions">
         <a href="{{ url_for('accounts.index') }}" class="btn btn-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Zurück
@@ -16,36 +16,38 @@
     <div class="col-lg-8 col-xl-6">
         <div class="card">
             <div class="card-body p-4">
-                <form method="POST" action="{{ url_for('accounts.edit', id=account.id) }}" novalidate>
+                <form method="POST" action="{{ url_for('accounts.create_credit_card') }}" novalidate>
                     {{ form.hidden_tag() }}
 
-                    <div class="mb-3">
-                        {{ form.name.label(class="form-label") }}
-                        {{ form.name(class="form-control") }}
-                        {% for error in form.name.errors %}
-                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
-                        {% endfor %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control", placeholder="z.B. Visa Gold") }}
+                            {% for error in form.name.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.credit_limit.label(class="form-label") }}
+                            {{ form.credit_limit(class="form-control", placeholder="z.B. 5000") }}
+                            {% for error in form.credit_limit.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-md-4">
-                            {{ form.type.label(class="form-label") }}
-                            {{ form.type(class="form-select") }}
-                            {% for error in form.type.errors %}
+                        <div class="col-md-6">
+                            {{ form.institute.label(class="form-label") }}
+                            {{ form.institute(class="form-control", placeholder="z.B. DKB") }}
+                            {% for error in form.institute.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             {{ form.scope.label(class="form-label") }}
                             {{ form.scope(class="form-select") }}
                             {% for error in form.scope.errors %}
-                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-4">
-                            {{ form.institute.label(class="form-label") }}
-                            {{ form.institute(class="form-control") }}
-                            {% for error in form.institute.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}
                         </div>
@@ -53,42 +55,32 @@
 
                     <div class="mb-3">
                         {{ form.starting_balance.label(class="form-label") }}
-                        {{ form.starting_balance(class="form-control") }}
-                        <div class="form-text">Änderung des Startsaldos passt den aktuellen Kontostand entsprechend an.</div>
+                        {{ form.starting_balance(class="form-control", placeholder="z.B. -1200") }}
+                        <small class="form-text">Negativ = bestehende Schulden auf der Karte.</small>
                         {% for error in form.starting_balance.errors %}
                             <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                         {% endfor %}
                     </div>
 
-                    <div class="form-check mb-4">
-                        {{ form.visible_to_partner(class="form-check-input") }}
-                        {{ form.visible_to_partner.label(class="form-check-label") }}
-                    </div>
-
-                    {% if is_credit_card %}
-                    <div class="card mb-3" style="border-color: var(--border-color);">
+                    <div class="card mb-4" style="border-color: var(--border-color);">
                         <div class="card-header">
-                            <i class="bi bi-credit-card me-2"></i>Kreditkarten-Details
+                            <i class="bi bi-calendar me-2"></i>Abrechnungszyklus (optional)
                         </div>
                         <div class="card-body">
+                            <small class="form-text d-block mb-3">
+                                Ohne Angabe werden Transaktionen einzeln mit individuellem Fälligkeitsdatum erfasst.
+                            </small>
                             <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    {{ form.credit_limit.label(class="form-label") }}
-                                    {{ form.credit_limit(class="form-control") }}
-                                    {% for error in form.credit_limit.errors %}
-                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-6">
                                     {{ form.statement_closing_day.label(class="form-label") }}
-                                    {{ form.statement_closing_day(class="form-control") }}
+                                    {{ form.statement_closing_day(class="form-control", placeholder="z.B. 15") }}
                                     {% for error in form.statement_closing_day.errors %}
                                         <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                                     {% endfor %}
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-6">
                                     {{ form.payment_due_day.label(class="form-label") }}
-                                    {{ form.payment_due_day(class="form-control") }}
+                                    {{ form.payment_due_day(class="form-control", placeholder="z.B. 1") }}
                                     {% for error in form.payment_due_day.errors %}
                                         <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                                     {% endfor %}
@@ -96,7 +88,6 @@
                             </div>
                         </div>
                     </div>
-                    {% endif %}
 
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary btn-lg") }}

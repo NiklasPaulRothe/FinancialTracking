@@ -11,7 +11,7 @@ from flask_login import login_required, current_user
 
 from app.models.account import AccountType, AccountScope
 from app.services.account_service import AccountService
-from app.blueprints.accounts.forms import AccountCreateForm, AccountEditForm
+from app.blueprints.accounts.forms import AccountCreateForm, AccountEditForm, CreditCardCreateForm
 
 accounts_bp = Blueprint(
     "accounts", __name__, url_prefix="/accounts", template_folder="templates"
@@ -31,16 +31,49 @@ def index():
     """
     accounts = account_service.get_accounts_for_user(current_user)
 
-    # Group accounts by type
-    spending_saving = [
-        a for a in accounts if a.type in (AccountType.spending, AccountType.saving)
+    # Compute available balances for all accounts
+    from app.services.balance_service import BalanceService
+    balance_service = BalanceService()
+    available_balances = {}
+    for a in accounts:
+        try:
+            available_balances[a.id] = balance_service.get_available_balance(a.id)
+        except Exception:
+            available_balances[a.id] = a.balance
+
+    # Group: personal (spending/saving/reserve separate), shared (same), credit cards
+    personal_spending = [
+        a for a in accounts if a.scope == AccountScope.personal and a.type == AccountType.spending
     ]
-    credit_cards = [a for a in accounts if a.type == AccountType.credit_card]
+    personal_saving = [
+        a for a in accounts if a.scope == AccountScope.personal and a.type == AccountType.saving
+    ]
+    personal_reserve = [
+        a for a in accounts if a.scope == AccountScope.personal and a.type == AccountType.reserve
+    ]
+    shared_spending = [
+        a for a in accounts if a.scope == AccountScope.shared and a.type == AccountType.spending
+    ]
+    shared_saving = [
+        a for a in accounts if a.scope == AccountScope.shared and a.type == AccountType.saving
+    ]
+    shared_reserve = [
+        a for a in accounts if a.scope == AccountScope.shared and a.type == AccountType.reserve
+    ]
+    credit_cards = [
+        a for a in accounts if a.type == AccountType.credit_card
+    ]
 
     return render_template(
         "accounts/index.html",
-        spending_saving=spending_saving,
+        personal_spending=personal_spending,
+        personal_saving=personal_saving,
+        personal_reserve=personal_reserve,
+        shared_spending=shared_spending,
+        shared_saving=shared_saving,
+        shared_reserve=shared_reserve,
         credit_cards=credit_cards,
+        available_balances=available_balances,
     )
 
 
@@ -80,6 +113,84 @@ def create():
     return render_template("accounts/create.html", form=form)
 
 
+@accounts_bp.route("/create-credit-card", methods=["GET", "POST"])
+@login_required
+def create_credit_card():
+    """Create a new credit card account with simplified form."""
+    form = CreditCardCreateForm()
+
+    if form.validate_on_submit():
+        kwargs = {
+            "credit_limit": form.credit_limit.data,
+            "visible_to_partner": True,
+        }
+        if form.institute.data:
+            kwargs["institute"] = form.institute.data
+        if form.starting_balance.data is not None:
+            kwargs["starting_balance"] = form.starting_balance.data
+        if form.statement_closing_day.data:
+            kwargs["statement_closing_day"] = form.statement_closing_day.data
+        if form.payment_due_day.data:
+            kwargs["payment_due_day"] = form.payment_due_day.data
+
+        account_service.create_account(
+            user=current_user,
+            name=form.name.data,
+            type=AccountType.credit_card,
+            scope=AccountScope(form.scope.data),
+            **kwargs,
+        )
+        flash("Kreditkarte erfolgreich erstellt.", "success")
+        return redirect(url_for("accounts.index"))
+
+    return render_template("accounts/create_credit_card.html", form=form)
+
+
+@accounts_bp.route("/detail/<int:id>")
+@login_required
+def detail(id):
+    """Display account details with transaction history."""
+    from app.extensions import db
+    from app.models.account import Account
+    from app.models.transaction import Transaction
+
+    account = db.session.get(Account, id)
+    if account is None:
+        flash("Konto nicht gefunden.", "danger")
+        return redirect(url_for("accounts.index"))
+
+    # Get all transactions for this account (as source or destination)
+    transactions = (
+        Transaction.query
+        .filter(
+            (Transaction.account_id == id) |
+            (Transaction.destination_account_id == id)
+        )
+        .order_by(Transaction.date.desc(), Transaction.created_at.desc())
+        .all()
+    )
+
+    # For credit cards: separate open (unpaid) and paid transactions
+    open_cc_transactions = []
+    if account.type == AccountType.credit_card:
+        open_cc_transactions = (
+            Transaction.query
+            .filter(
+                Transaction.account_id == id,
+                Transaction.paid == False,  # noqa: E712
+            )
+            .order_by(Transaction.due_date.asc())
+            .all()
+        )
+
+    return render_template(
+        "accounts/detail.html",
+        account=account,
+        transactions=transactions,
+        open_cc_transactions=open_cc_transactions,
+    )
+
+
 @accounts_bp.route("/edit/<int:id>", methods=["GET", "POST"])
 @login_required
 def edit(id):
@@ -103,9 +214,16 @@ def edit(id):
     is_credit_card = account.type == AccountType.credit_card
     form = AccountEditForm(obj=account)
 
+    # Pre-populate enum fields with their string values for SelectField matching
+    if not form.is_submitted():
+        form.type.data = account.type.value
+        form.scope.data = account.scope.value
+
     if form.validate_on_submit():
         updates = {
             "name": form.name.data,
+            "type": AccountType(form.type.data),
+            "scope": AccountScope(form.scope.data),
             "institute": form.institute.data or None,
             "visible_to_partner": form.visible_to_partner.data,
             "starting_balance": form.starting_balance.data,
@@ -146,3 +264,89 @@ def delete(id):
         flash(f"Fehler beim Löschen: {e}", "danger")
 
     return redirect(url_for("accounts.index"))
+
+
+@accounts_bp.route("/cc-extend/<int:txn_id>", methods=["POST"])
+@login_required
+def cc_extend(txn_id):
+    """Extend the due date of a credit card transaction."""
+    from app.extensions import db
+    from app.models.transaction import Transaction
+    from datetime import timedelta
+
+    txn = db.session.get(Transaction, txn_id)
+    if txn is None or txn.user_id != current_user.id:
+        flash("Transaktion nicht gefunden.", "danger")
+        return redirect(url_for("accounts.index"))
+
+    days = request.form.get("extend_days", type=int)
+    if not days or days < 1:
+        flash("Bitte eine gültige Anzahl Tage angeben.", "danger")
+        return redirect(url_for("accounts.detail", id=txn.account_id))
+
+    if txn.due_date:
+        txn.due_date = txn.due_date + timedelta(days=days)
+    else:
+        txn.due_date = txn.date + timedelta(days=30 + days)
+
+    db.session.commit()
+    flash(f"Fälligkeitsdatum um {days} Tage verlängert.", "success")
+    return redirect(url_for("accounts.detail", id=txn.account_id))
+
+
+@accounts_bp.route("/cc-pay/<int:txn_id>", methods=["POST"])
+@login_required
+def cc_pay(txn_id):
+    """Mark a credit card transaction as paid."""
+    from app.extensions import db
+    from app.models.transaction import Transaction
+
+    txn = db.session.get(Transaction, txn_id)
+    if txn is None or txn.user_id != current_user.id:
+        flash("Transaktion nicht gefunden.", "danger")
+        return redirect(url_for("accounts.index"))
+
+    txn.paid = True
+    db.session.commit()
+    flash("Zahlung als beglichen markiert.", "success")
+    return redirect(url_for("accounts.detail", id=txn.account_id))
+
+
+@accounts_bp.route("/cc-to-credit/<int:txn_id>", methods=["POST"])
+@login_required
+def cc_to_credit(txn_id):
+    """Convert a credit card transaction to a mini-credit."""
+    from app.extensions import db
+    from app.models.transaction import Transaction
+    from app.models.credit import Credit, CreditStatus, CreditScope
+    from decimal import Decimal
+
+    txn = db.session.get(Transaction, txn_id)
+    if txn is None or txn.user_id != current_user.id:
+        flash("Transaktion nicht gefunden.", "danger")
+        return redirect(url_for("accounts.index"))
+
+    # Create a credit from this transaction
+    credit = Credit(
+        name=f"Kreditkarte: {txn.description or txn.date.strftime('%d.%m.%Y')}",
+        principal=txn.amount,
+        remaining_balance=txn.amount,
+        accrued_interest=Decimal("0.000000"),
+        effective_yearly_rate=Decimal("0.000000"),  # User can set later
+        disbursement_date=txn.date,
+        interest_capitalization_day=1,
+        status=CreditStatus.active,
+        scope=CreditScope(txn.scope.value),
+        account_id=txn.account_id,
+        converted_from_credit_card_payment=True,
+        linked_transaction_id=txn.id,
+        user_id=current_user.id,
+    )
+    db.session.add(credit)
+
+    # Mark original transaction as paid (debt moved to credit)
+    txn.paid = True
+    db.session.commit()
+
+    flash(f"Transaktion in Kredit umgewandelt: {credit.name}", "success")
+    return redirect(url_for("credits.detail", id=credit.id))

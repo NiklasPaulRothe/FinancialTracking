@@ -25,31 +25,72 @@
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Zuordnung</th>
+                        <th style="color: var(--text-muted);">Zuordnung</th>
                         <th class="text-end">Restschuld</th>
-                        <th class="text-end">Aufgelaufene Zinsen</th>
-                        <th class="text-end">Eff. Jahreszins</th>
-                        <th>Status</th>
+                        <th class="text-end">Zinsen</th>
+                        <th class="text-end">Eff. Zins</th>
+                        <th>Ratenzahlung</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for credit in active_credits %}
                     <tr>
-                        <td class="fw-medium" style="color: var(--text-primary);">
-                            <a href="{{ url_for('credits.detail', id=credit.id) }}">{{ credit.name }}</a>
+                        <td style="color: var(--text-primary); font-weight: 500;">
+                            <a href="{{ url_for('credits.detail', id=credit.id) }}" style="color: var(--text-primary); text-decoration: none; border-bottom: 1px dashed var(--border-light);">
+                                {{ credit.name }}
+                            </a>
                         </td>
-                        <td>{{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td style="color: var(--text-secondary);">{{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</td>
                         <td class="text-end fw-medium text-danger">{{ "%.2f"|format(credit.remaining_balance) }} €</td>
-                        <td class="text-end text-danger">{{ "%.2f"|format(credit.accrued_interest) }} €</td>
-                        <td class="text-end">{{ "%.2f"|format(credit.effective_yearly_rate * 100) }} %</td>
-                        <td><span class="badge bg-success">Aktiv</span></td>
+                        <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(credit.accrued_interest) }} €</td>
+                        <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(credit.effective_yearly_rate * 100) }}%</td>
+                        <td style="color: var(--text-secondary);">
+                            {% if credit.repayment_schedule %}
+                                <span style="color: var(--accent);">{{ "%.2f"|format(credit.repayment_schedule.payment_amount) }} €/Monat</span>
+                            {% else %}
+                                <button class="btn btn-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#repaySetup{{ credit.id }}">
+                                    <i class="bi bi-plus-lg"></i> Einrichten
+                                </button>
+                            {% endif %}
+                        </td>
                         <td class="text-end">
-                            <a href="{{ url_for('credits.repay', id=credit.id) }}" class="btn btn-secondary btn-sm">
+                            <a href="{{ url_for('credits.detail', id=credit.id) }}" class="btn btn-secondary btn-sm me-1" title="Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('credits.repay', id=credit.id) }}" class="btn btn-secondary btn-sm" title="Rückzahlung">
                                 <i class="bi bi-cash-stack"></i>
                             </a>
                         </td>
                     </tr>
+                    {% if not credit.repayment_schedule %}
+                    <tr class="collapse" id="repaySetup{{ credit.id }}">
+                        <td colspan="7" style="background: var(--bg-body); border: none; padding: 1rem;">
+                            <form method="POST" action="{{ url_for('credits.setup_recurring', id=credit.id) }}" class="row g-2 align-items-end">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size: 0.75rem;">Monatliche Rate (€)</label>
+                                    <input type="number" step="0.01" min="0.01" name="payment_amount" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size: 0.75rem;">Von Konto</label>
+                                    <select name="account_id" class="form-select form-select-sm" required>
+                                        {% for acc in accounts %}
+                                        <option value="{{ acc.id }}">{{ acc.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size: 0.75rem;">Tag im Monat</label>
+                                    <input type="number" min="1" max="28" name="day_of_month" class="form-control form-control-sm" value="1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">Ratenzahlung speichern</button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
@@ -85,11 +126,9 @@
                 <tbody>
                     {% for credit in paid_off_credits %}
                     <tr>
-                        <td class="fw-medium" style="color: var(--text-primary);">
-                            <a href="{{ url_for('credits.detail', id=credit.id) }}">{{ credit.name }}</a>
-                        </td>
-                        <td>{{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</td>
-                        <td class="text-end">{{ "%.2f"|format(credit.principal) }} €</td>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ credit.name }}</td>
+                        <td style="color: var(--text-secondary);">{{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(credit.principal) }} €</td>
                         <td><span class="badge bg-success">Getilgt</span></td>
                     </tr>
                     {% endfor %}

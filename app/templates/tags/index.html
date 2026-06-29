@@ -11,6 +11,7 @@
         <div class="card-body">
             <h5 class="card-title">Neuen Tag erstellen</h5>
             <form method="POST" action="{{ url_for('tags.create') }}" class="row g-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="col-md-8">
                     <label for="name" class="form-label">Name</label>
                     <input type="text" class="form-control" id="name" name="name"
@@ -40,6 +41,7 @@
                     <td>
                         <form method="POST" action="{{ url_for('tags.delete', id=tag.id) }}"
                               onsubmit="return confirm('Tag wirklich löschen? Die Zuordnung zu Transaktionen wird entfernt.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                         </form>
                     </td>

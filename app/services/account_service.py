@@ -111,7 +111,7 @@ class AccountService:
         old_values = {k: getattr(account, k) for k in updates if hasattr(account, k)}
 
         # Common editable fields
-        allowed_fields = {"name", "institute", "visible_to_partner"}
+        allowed_fields = {"name", "type", "scope", "institute", "visible_to_partner"}
         # Credit card specific fields
         if account.type == AccountType.credit_card:
             allowed_fields.update({

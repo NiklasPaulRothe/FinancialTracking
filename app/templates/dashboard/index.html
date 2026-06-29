@@ -23,13 +23,36 @@
   {# ==================== PERSONAL VIEW ==================== #}
   <div class="row g-3">
 
-    {# Balance Card #}
+    {# Finance Overview Cards #}
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card h-100">
         <div class="card-body">
-          <h5 class="card-title">Kontostand</h5>
-          <p class="mb-1"><strong>Gesamtsaldo:</strong> {{ "%.2f"|format(total_balance) }} €</p>
-          <p class="mb-0"><strong>Verfügbar:</strong> {{ "%.2f"|format(available_balance) }} €</p>
+          <h5 class="card-title">Finanzen</h5>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Kontostand</span>
+            <span class="fw-medium {{ 'text-success' if kontostand >= 0 else 'text-danger' }}">{{ "%.2f"|format(kontostand) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Verfügbar</span>
+            <span class="fw-medium {{ 'text-success' if verfuegbar >= 0 else 'text-danger' }}">{{ "%.2f"|format(verfuegbar) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Rücklagen</span>
+            <span class="fw-medium" style="color: var(--accent);">{{ "%.2f"|format(ruecklagen) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Notgroschen</span>
+            <span class="fw-medium text-info">{{ "%.2f"|format(notgroschen) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Schulden</span>
+            <span class="fw-medium {{ 'text-danger' if schulden > 0 else 'text-success' }}">{{ "%.2f"|format(schulden) }} €</span>
+          </div>
+          <hr style="border-color: var(--border-light); margin: 0.5rem 0;">
+          <div class="d-flex justify-content-between">
+            <span style="color: var(--text-primary); font-weight: 600;">Vermögen</span>
+            <span class="fw-bold {{ 'text-success' if vermoegen >= 0 else 'text-danger' }}">{{ "%.2f"|format(vermoegen) }} €</span>
+          </div>
         </div>
       </div>
     </div>
@@ -48,12 +71,51 @@
               {{ income_cycle_progress.percentage }}%
             </div>
           </div>
-          <small class="text-muted">
-            Nächstes Einkommen: {{ income_cycle_progress.next_income_date.strftime('%d.%m.%Y') }}
-          </small>
+          <small style="color: var(--text-muted);">Nächstes Einkommen: {{ income_cycle_progress.next_income_date.strftime('%d.%m.%Y') }}</small>
           {% else %}
-          <p class="text-muted mb-0">Keine Daten verfügbar.</p>
+          <p class="text-muted mb-0">Einkommenstag in den Einstellungen festlegen.</p>
           {% endif %}
+
+          {% if income_rule %}
+          <div class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top: 1px solid var(--border-color);">
+            <div>
+              <span style="color: var(--text-secondary); font-size: 0.8rem;">Gehalt</span><br>
+              <span class="fw-medium" style="color: var(--text-primary);">{{ "%.2f"|format(income_rule.amount) }} € → {{ income_rule.account.name if income_rule.account else "?" }}</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#incomeEditForm">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </div>
+          {% else %}
+          <div class="mt-3 pt-3" style="border-top: 1px solid var(--border-color);">
+            <small style="color: var(--text-muted);">Kein Gehalt eingerichtet.</small>
+            <button class="btn btn-primary btn-sm mt-2 w-100" data-bs-toggle="collapse" data-bs-target="#incomeEditForm">
+              <i class="bi bi-plus-lg me-1"></i>Gehalt einrichten
+            </button>
+          </div>
+          {% endif %}
+
+          <div class="collapse mt-3" id="incomeEditForm">
+            <form method="POST" action="{{ url_for('dashboard.set_income') }}" class="row g-2 align-items-end">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="col-6">
+                <label class="form-label" style="font-size: 0.7rem;">Betrag (€)</label>
+                <input type="number" step="0.01" min="0.01" name="income_amount" class="form-control form-control-sm"
+                       value="{{ '%.2f'|format(income_rule.amount) if income_rule else '' }}" placeholder="2500.00" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size: 0.7rem;">Konto</label>
+                <select name="income_account_id" class="form-select form-select-sm" required>
+                  {% for acc in personal_giro_accounts %}
+                  <option value="{{ acc.id }}" {{ 'selected' if income_rule and income_rule.account_id == acc.id else '' }}>{{ acc.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Speichern</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -115,9 +177,21 @@
       <div class="card h-100">
         <div class="card-body">
           <h5 class="card-title">Geplante Ausgaben</h5>
-          {% if unresolved_planned_count > 0 %}
-          <p class="display-6 mb-1">{{ unresolved_planned_count }}</p>
-          <p class="text-muted mb-0">offene geplante Ausgaben</p>
+          {% if unresolved_planned %}
+          <ul class="list-group list-group-flush">
+            {% for expense in unresolved_planned[:5] %}
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+              <div>
+                <span style="color: var(--text-primary);">{{ expense.name }}</span>
+                {% if expense.blocking %}<br><small style="color: var(--accent);">blockierend</small>{% endif %}
+              </div>
+              <span class="text-danger fw-medium">{{ expense.display_amount }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% if unresolved_planned|length > 5 %}
+          <small class="text-muted mt-2 d-block">+ {{ unresolved_planned|length - 5 }} weitere</small>
+          {% endif %}
           {% else %}
           <p class="text-muted mb-1">Keine offenen geplanten Ausgaben.</p>
           <a href="{{ url_for('planned_expenses.create') }}" class="btn btn-sm btn-outline-primary">Geplante Ausgabe erstellen</a>
@@ -181,6 +255,30 @@
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card h-100">
         <div class="card-body">
+          <h5 class="card-title">Offene Kreditkartenzahlungen</h5>
+          {% if open_cc_payments %}
+          <ul class="list-group list-group-flush">
+            {% for txn in open_cc_payments %}
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+              <div>
+                <span style="color: var(--text-primary);">{{ txn.description or "Kreditkarte" }}</span>
+                <br><small style="color: var(--text-muted);">Fällig: <span style="color: var(--accent);">{{ txn.due_date.strftime('%d.%m.%Y') if txn.due_date else "—" }}</span></small>
+              </div>
+              <span class="text-danger fw-medium">{{ "%.2f"|format(txn.amount) }} €</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-0">Keine offenen Zahlungen.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Top 3 Saving Goals #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
           <h5 class="card-title">Sparziele</h5>
           {% if top_saving_goals %}
           <ul class="list-unstyled mb-0">
@@ -212,12 +310,36 @@
   {# ==================== SHARED VIEW ==================== #}
   <div class="row g-3">
 
-    {# Shared Account Balance #}
+    {# Finance Overview Cards #}
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card h-100">
         <div class="card-body">
-          <h5 class="card-title">Gemeinsamer Kontostand</h5>
-          <p class="display-6 mb-0">{{ "%.2f"|format(shared_balance) }} €</p>
+          <h5 class="card-title">Gemeinsame Finanzen</h5>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Kontostand</span>
+            <span class="fw-medium {{ 'text-success' if kontostand >= 0 else 'text-danger' }}">{{ "%.2f"|format(kontostand) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Verfügbar</span>
+            <span class="fw-medium {{ 'text-success' if verfuegbar >= 0 else 'text-danger' }}">{{ "%.2f"|format(verfuegbar) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Rücklagen</span>
+            <span class="fw-medium" style="color: var(--accent);">{{ "%.2f"|format(ruecklagen) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Notgroschen</span>
+            <span class="fw-medium text-info">{{ "%.2f"|format(notgroschen) }} €</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span style="color: var(--text-secondary);">Schulden</span>
+            <span class="fw-medium {{ 'text-danger' if schulden > 0 else 'text-success' }}">{{ "%.2f"|format(schulden) }} €</span>
+          </div>
+          <hr style="border-color: var(--border-light); margin: 0.5rem 0;">
+          <div class="d-flex justify-content-between">
+            <span style="color: var(--text-primary); font-weight: 600;">Vermögen</span>
+            <span class="fw-bold {{ 'text-success' if vermoegen >= 0 else 'text-danger' }}">{{ "%.2f"|format(vermoegen) }} €</span>
+          </div>
         </div>
       </div>
     </div>

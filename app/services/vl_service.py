@@ -336,3 +336,119 @@ class VLService:
 
         days_since_update = (reference_date - updated_date).days
         return days_since_update > STALE_PRICE_THRESHOLD_DAYS
+
+    # -------------------------------------------------------------------------
+    # Historic backfill
+    # -------------------------------------------------------------------------
+
+    def backfill_contributions(self, contract: VL, user: User) -> list[VLContributionLog]:
+        """Generate contribution logs for all past months since contract start.
+
+        When a VL contract is created with a start_date in the past, this method
+        creates VLContributionLog entries for each month from start_date up to
+        and including the current month. If the contract is linked to an ETF
+        position, it also creates ETFTransactions and updates the position shares.
+
+        For historic entries, the price used is the position's current_price
+        (best available approximation). If no current_price is set, contributions
+        are logged without ETF transactions (can be updated later when price is fetched).
+
+        Args:
+            contract: The VL contract to backfill.
+            user: The owning user.
+
+        Returns:
+            List of created VLContributionLog entries.
+        """
+        today = date.today()
+        current_month = date(today.year, today.month, 1)
+        start_month = date(contract.start_date.year, contract.start_date.month, 1)
+
+        if start_month > current_month:
+            return []
+
+        created_logs: list[VLContributionLog] = []
+        position = None
+        if contract.etf_position_id is not None:
+            position = db.session.get(ETFPosition, contract.etf_position_id)
+
+        month = start_month
+        while month <= current_month:
+            # Skip if already exists (idempotency)
+            existing = VLContributionLog.query.filter_by(
+                vl_id=contract.id, month=month
+            ).first()
+            if existing is not None:
+                month = self._next_month(month)
+                continue
+
+            etf_transaction = None
+            shares_bought = None
+            price_per_share = None
+
+            # If linked to ETF and price is available, create buy transaction
+            if position is not None and position.current_price is not None:
+                current_price = position.current_price
+                amount = contract.total_contribution_monthly
+
+                shares = (amount / current_price).quantize(
+                    Decimal("0.000001"), rounding=ROUND_HALF_UP
+                )
+                total_amount = (shares * current_price).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+
+                etf_transaction = ETFTransaction(
+                    position_id=position.id,
+                    type=ETFTransactionType.buy,
+                    shares_quantity=shares,
+                    price_per_share=current_price,
+                    total_amount=total_amount,
+                    linked_account_id=None,
+                    date=month,
+                    user_id=user.id,
+                )
+                db.session.add(etf_transaction)
+                db.session.flush()
+
+                # Update position shares and average price
+                existing_shares = position.shares
+                old_avg = position.average_buy_price
+                if existing_shares + shares > 0:
+                    new_avg = (
+                        (existing_shares * old_avg) + (shares * current_price)
+                    ) / (existing_shares + shares)
+                    position.average_buy_price = new_avg.quantize(
+                        Decimal("0.000001"), rounding=ROUND_HALF_UP
+                    )
+                position.shares += shares
+
+                shares_bought = shares
+                price_per_share = current_price
+
+            log = VLContributionLog(
+                vl_id=contract.id,
+                month=month,
+                employer_amount=contract.employer_contribution_monthly,
+                employee_amount=contract.employee_contribution_monthly,
+                amount=contract.total_contribution_monthly,
+                shares_bought=shares_bought,
+                price_per_share=price_per_share,
+                etf_transaction_id=etf_transaction.id if etf_transaction else None,
+            )
+            db.session.add(log)
+            created_logs.append(log)
+
+            month = self._next_month(month)
+
+        if created_logs:
+            db.session.flush()
+
+        return created_logs
+
+    @staticmethod
+    def _next_month(d: date) -> date:
+        """Return the first day of the next month."""
+        if d.month == 12:
+            return date(d.year + 1, 1, 1)
+        return date(d.year, d.month + 1, 1)

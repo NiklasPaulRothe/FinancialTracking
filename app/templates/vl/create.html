@@ -19,6 +19,14 @@
                 <form method="POST" action="{{ url_for('vl.create') }}" novalidate>
                     {{ form.hidden_tag() }}
 
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="z.B. VL-Sparplan Finvesto") }}
+                        {% for error in form.name.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             {{ form.employer_contribution_monthly.label(class="form-label") }}
@@ -30,7 +38,7 @@
                         <div class="col-md-6">
                             {{ form.employee_contribution_monthly.label(class="form-label") }}
                             {{ form.employee_contribution_monthly(class="form-control") }}
-                            <small class="text-muted">Optional — eigener Aufstockungsbetrag</small>
+                            <small class="form-text">Optional — eigener Aufstockungsbetrag</small>
                             {% for error in form.employee_contribution_monthly.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}
@@ -48,27 +56,73 @@
                         <div class="col-md-6">
                             {{ form.lock_up_end_date.label(class="form-label") }}
                             {{ form.lock_up_end_date(class="form-control") }}
-                            <small class="text-muted">Ende der Sperrfrist</small>
+                            <small class="form-text">Ende der 7-Jahres-Sperrfrist</small>
                             {% for error in form.lock_up_end_date.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        {{ form.etf_position_id.label(class="form-label") }}
-                        {{ form.etf_position_id(class="form-select") }}
-                        <small class="text-muted">Wenn die VL in einen ETF-Sparplan fließen, hier die Position wählen.</small>
-                        {% for error in form.etf_position_id.errors %}
-                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
-                        {% endfor %}
+                    <!-- ETF Section -->
+                    <div class="card mb-3" style="border-color: var(--border-color);">
+                        <div class="card-header">
+                            <i class="bi bi-graph-up me-2"></i>ETF-Zuordnung (optional)
+                        </div>
+                        <div class="card-body">
+                            <small class="form-text d-block mb-3">
+                                Wenn Ihre VL in einen ETF fließt, geben Sie die ISIN ein.
+                                Die ETF-Position wird automatisch angelegt, falls sie noch nicht existiert.
+                            </small>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    {{ form.etf_isin.label(class="form-label") }}
+                                    {{ form.etf_isin(class="form-control", placeholder="z.B. IE00BK5BQT80") }}
+                                    {% for error in form.etf_isin.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.etf_name.label(class="form-label") }}
+                                    {{ form.etf_name(class="form-control", placeholder="z.B. Vanguard FTSE All-World") }}
+                                    {% for error in form.etf_name.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    {{ form.etf_ticker.label(class="form-label") }}
+                                    {{ form.etf_ticker(class="form-control", placeholder="z.B. EUNL") }}
+                                    <small class="form-text">Wird für Kursabfrage bei Yahoo Finance genutzt</small>
+                                    {% for error in form.etf_ticker.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.etf_exchange.label(class="form-label") }}
+                                    {{ form.etf_exchange(class="form-control", placeholder="z.B. DE") }}
+                                    <small class="form-text">Börsen-Suffix (DE=Xetra, F=Frankfurt)</small>
+                                    {% for error in form.etf_exchange.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.etf_price.label(class="form-label") }}
+                                    {{ form.etf_price(class="form-control", placeholder="z.B. 85.50") }}
+                                    <small class="form-text">Fallback wenn Kursabfrage fehlschlägt</small>
+                                    {% for error in form.etf_price.errors %}
+                                        <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row mb-4">
                         <div class="col-md-6">
                             {{ form.sparzulage_rate.label(class="form-label") }}
                             {{ form.sparzulage_rate(class="form-control") }}
-                            <small class="text-muted">z.B. 0.20 = 20%</small>
+                            <small class="form-text">z.B. 0,20 = 20%</small>
                             {% for error in form.sparzulage_rate.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}
@@ -76,7 +130,7 @@
                         <div class="col-md-6">
                             {{ form.annual_eligible_max.label(class="form-label") }}
                             {{ form.annual_eligible_max(class="form-control") }}
-                            <small class="text-muted">Standard: 400,00 €</small>
+                            <small class="form-text">Standard: 400,00 €</small>
                             {% for error in form.annual_eligible_max.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}

@@ -11,7 +11,7 @@
 -- ENUM TYPES
 -- =============================================================================
 
-CREATE TYPE account_type AS ENUM ('spending', 'saving', 'credit_card');
+CREATE TYPE account_type AS ENUM ('spending', 'saving', 'reserve', 'credit_card');
 CREATE TYPE account_scope AS ENUM ('personal', 'shared');
 CREATE TYPE snapshot_source AS ENUM ('automatic', 'manual');
 CREATE TYPE transaction_type AS ENUM ('income', 'expense', 'transfer', 'credit_card_payment');

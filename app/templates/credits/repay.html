@@ -3,30 +3,59 @@
 {% block title %}Rückzahlung: {{ credit.name }} — Haushaltsbuch{% endblock %}
 
 {% block content %}
-<h1>Rückzahlung: {{ credit.name }}</h1>
-
-<div class="credit-summary">
-    <p><strong>Restschuld:</strong> {{ "%.2f"|format(credit.remaining_balance) }} €</p>
-    <p><strong>Aufgelaufene Zinsen:</strong> {{ "%.2f"|format(credit.accrued_interest) }} €</p>
-    <p><strong>Gesamt offen:</strong> {{ "%.2f"|format(credit.remaining_balance + credit.accrued_interest) }} €</p>
+<div class="page-header">
+    <h1><i class="bi bi-cash-stack me-2"></i>Rückzahlung: {{ credit.name }}</h1>
+    <div class="actions">
+        <a href="{{ url_for('credits.detail', id=credit.id) }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+    </div>
 </div>
 
-<form method="POST" action="{{ url_for('credits.repay', id=credit.id) }}" novalidate>
-    {{ form.hidden_tag() }}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <!-- Summary -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-2">
+                        <span class="section-title d-block">Restschuld</span>
+                        <span class="fw-bold text-danger">{{ "%.2f"|format(credit.remaining_balance) }} €</span>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <span class="section-title d-block">Zinsen</span>
+                        <span class="fw-medium" style="color: var(--text-primary);">{{ "%.2f"|format(credit.accrued_interest) }} €</span>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <span class="section-title d-block">Gesamt offen</span>
+                        <span class="fw-bold" style="color: var(--accent);">{{ "%.2f"|format(credit.remaining_balance + credit.accrued_interest) }} €</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <div>
-        {{ form.amount.label }}
-        {{ form.amount() }}
-        <small>Die Rückzahlung wird zuerst auf aufgelaufene Zinsen, dann auf die Restschuld angerechnet.</small>
-        {% for error in form.amount.errors %}
-            <span class="error">{{ error }}</span>
-        {% endfor %}
+        <!-- Payment Form -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-cash-stack me-2"></i>Zahlung buchen</div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('credits.repay', id=credit.id) }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.amount.label(class="form-label") }}
+                        {{ form.amount(class="form-control", placeholder="Betrag eingeben") }}
+                        <small class="form-text">Wird zuerst auf Zinsen, dann auf Restschuld angerechnet.</small>
+                        {% for error in form.amount.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
-
-<p><a href="{{ url_for('credits.detail', id=credit.id) }}">Zurück zum Kredit</a></p>
+</div>
 {% endblock %}

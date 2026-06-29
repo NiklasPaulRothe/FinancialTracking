@@ -12,40 +12,38 @@
     </div>
 </div>
 
-<!-- Aktive Daueraufträge -->
+{% macro recurring_table(rules, title, icon) %}
 <div class="card mb-4">
     <div class="card-header d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-arrow-repeat me-2"></i>Aktive Daueraufträge</span>
-        <span class="badge bg-secondary">{{ active_rules|length }}</span>
+        <span><i class="bi bi-{{ icon }} me-2"></i>{{ title }}</span>
+        <span class="badge bg-secondary">{{ rules|length }}</span>
     </div>
     <div class="card-body p-0">
-        {% if active_rules %}
+        {% if rules %}
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Typ</th>
-                        <th>Frequenz</th>
-                        <th>Intervall</th>
-                        <th class="text-end">Betrag</th>
-                        <th>Nächste Fälligkeit</th>
-                        <th>Zuordnung</th>
-                        <th>Status</th>
-                        <th class="text-end">Aktionen</th>
+                        <th style="width: 22%;">Name</th>
+                        <th style="width: 10%;">Typ</th>
+                        <th style="width: 12%;">Frequenz</th>
+                        <th style="width: 14%;" class="text-end">Betrag</th>
+                        <th style="width: 14%;">Nächste Fälligkeit</th>
+                        <th style="width: 8%;">Status</th>
+                        <th style="width: 20%;" class="text-end">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for rule in active_rules %}
+                    {% for rule in rules %}
                     <tr>
-                        <td class="fw-medium" style="color: var(--text-primary);">{{ rule.name }}</td>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}</td>
                         <td>
                             {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
                             {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>
                             {% elif rule.type.value == "transfer" %}<span class="badge bg-secondary">Umbuchung</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td style="color: var(--text-secondary);">
                             {% if rule.frequency.value == "daily" %}Täglich
                             {% elif rule.frequency.value == "weekly" %}Wöchentlich
                             {% elif rule.frequency.value == "monthly" %}Monatlich
@@ -53,14 +51,17 @@
                             {% elif rule.frequency.value == "yearly" %}Jährlich
                             {% endif %}
                         </td>
-                        <td>{{ rule.interval }}</td>
                         <td class="text-end fw-medium {{ 'text-success' if rule.type.value == 'income' else 'text-danger' }}">
                             {{ "%.2f"|format(rule.amount) }} €
                         </td>
-                        <td>{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
-                        <td>{{ "Persönlich" if rule.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td style="color: var(--text-secondary);">{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
                         <td><span class="badge bg-success">Aktiv</span></td>
                         <td class="text-end">
+                            {% if rule.type == TransactionType.transfer %}
+                            <a href="{{ url_for('recurring.splits', id=rule.id) }}" class="btn btn-secondary btn-sm me-1" title="Splits">
+                                <i class="bi bi-pie-chart"></i>
+                            </a>
+                            {% endif %}
                             <a href="{{ url_for('recurring.edit', id=rule.id) }}" class="btn btn-secondary btn-sm me-1">
                                 <i class="bi bi-pencil"></i>
                             </a>
@@ -74,52 +75,71 @@
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr style="border-top: 2px solid var(--border-light);">
+                        <td colspan="3" style="color: var(--text-primary); font-weight: 600;">Summe</td>
+                        {% set income_sum = rules|selectattr('type.value', 'equalto', 'income')|map(attribute='amount')|sum %}
+                        {% set expense_sum = rules|selectattr('type.value', 'equalto', 'expense')|map(attribute='amount')|sum %}
+                        {% set transfer_sum = rules|selectattr('type.value', 'equalto', 'transfer')|map(attribute='amount')|sum %}
+                        {% set net = income_sum - expense_sum - transfer_sum %}
+                        <td class="text-end fw-bold {{ 'text-success' if net >= 0 else 'text-danger' }}">
+                            {{ "%+.2f"|format(net) }} €
+                        </td>
+                        <td colspan="3" style="color: var(--text-muted); font-size: 0.8rem;">
+                            <span class="text-success">+{{ "%.2f"|format(income_sum) }}</span> /
+                            <span class="text-danger">-{{ "%.2f"|format(expense_sum) }}</span>
+                            {% if transfer_sum %} / <span style="color: var(--accent);">↗{{ "%.2f"|format(transfer_sum) }}</span>{% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         {% else %}
         <div class="empty-state">
-            <i class="bi bi-arrow-repeat d-block"></i>
+            <i class="bi bi-{{ icon }} d-block"></i>
             <p>Keine aktiven Daueraufträge vorhanden.</p>
             <a href="{{ url_for('recurring.create') }}" class="btn btn-primary btn-sm">Dauerauftrag erstellen</a>
         </div>
         {% endif %}
     </div>
 </div>
+{% endmacro %}
 
+{{ recurring_table(active_personal, "Persönliche Daueraufträge", "person") }}
+{{ recurring_table(active_shared, "Gemeinsame Daueraufträge", "people") }}
+
+{% if inactive_rules %}
 <!-- Inaktive Daueraufträge -->
 <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-arrow-repeat me-2"></i>Inaktive Daueraufträge</span>
+        <span><i class="bi bi-pause-circle me-2"></i>Inaktive Daueraufträge</span>
         <span class="badge bg-secondary">{{ inactive_rules|length }}</span>
     </div>
     <div class="card-body p-0">
-        {% if inactive_rules %}
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Typ</th>
-                        <th>Frequenz</th>
-                        <th>Intervall</th>
-                        <th class="text-end">Betrag</th>
-                        <th>Nächste Fälligkeit</th>
-                        <th>Zuordnung</th>
-                        <th>Status</th>
-                        <th class="text-end">Aktionen</th>
+                        <th style="width: 22%;">Name</th>
+                        <th style="width: 10%;">Typ</th>
+                        <th style="width: 12%;">Frequenz</th>
+                        <th style="width: 14%;" class="text-end">Betrag</th>
+                        <th style="width: 14%;">Nächste Fälligkeit</th>
+                        <th style="width: 8%;">Status</th>
+                        <th style="width: 20%;" class="text-end">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for rule in inactive_rules %}
                     <tr>
-                        <td class="fw-medium" style="color: var(--text-primary);">{{ rule.name }}</td>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}</td>
                         <td>
                             {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
                             {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>
                             {% elif rule.type.value == "transfer" %}<span class="badge bg-secondary">Umbuchung</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td style="color: var(--text-secondary);">
                             {% if rule.frequency.value == "daily" %}Täglich
                             {% elif rule.frequency.value == "weekly" %}Wöchentlich
                             {% elif rule.frequency.value == "monthly" %}Monatlich
@@ -127,10 +147,8 @@
                             {% elif rule.frequency.value == "yearly" %}Jährlich
                             {% endif %}
                         </td>
-                        <td>{{ rule.interval }}</td>
-                        <td class="text-end fw-medium">{{ "%.2f"|format(rule.amount) }} €</td>
-                        <td>{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
-                        <td>{{ "Persönlich" if rule.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td class="text-end fw-medium" style="color: var(--text-secondary);">{{ "%.2f"|format(rule.amount) }} €</td>
+                        <td style="color: var(--text-secondary);">{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
                         <td><span class="badge bg-danger">Inaktiv</span></td>
                         <td class="text-end">
                             <a href="{{ url_for('recurring.edit', id=rule.id) }}" class="btn btn-secondary btn-sm me-1">
@@ -148,12 +166,7 @@
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="bi bi-arrow-repeat d-block"></i>
-            <p>Keine inaktiven Daueraufträge vorhanden.</p>
-        </div>
-        {% endif %}
     </div>
 </div>
+{% endif %}
 {% endblock %}
