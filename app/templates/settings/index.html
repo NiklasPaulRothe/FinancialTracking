@@ -29,6 +29,17 @@
                         </div>
 
                         <div class="mb-3">
+                            {{ form.shared_income_day.label(class="form-label") }}
+                            {{ form.shared_income_day(class="form-control", min=1, max=31) }}
+                            {% for error in form.shared_income_day.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Tag des Monats für den gemeinsamen Haushaltszyklus (1-31). Optional.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
                             {{ form.date_format.label(class="form-label") }}
                             {{ form.date_format(class="form-select") }}
                             {% for error in form.date_format.errors %}

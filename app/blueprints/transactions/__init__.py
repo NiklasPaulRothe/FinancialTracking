@@ -11,7 +11,8 @@ from flask_login import login_required, current_user
 
 from app.models.account import Account
 from app.models.category import Category
-from app.models.transaction import Transaction, TransactionScope, TransactionType
+from app.models.transaction import Transaction, TransactionScope, TransactionType, Tag
+from app.extensions import db
 from app.services.transaction_service import TransactionService
 from app.blueprints.transactions.forms import TransactionCreateForm, TransactionEditForm
 
@@ -30,6 +31,26 @@ def _get_user_accounts():
 def _get_user_categories():
     """Get categories for the current user."""
     return Category.query.filter_by(user_id=current_user.id).all()
+
+
+def _apply_tags(transaction, tags_string, user_id):
+    """Parse comma-separated tag names and link them to the transaction.
+
+    Creates tags that don't exist yet for the user.
+    """
+    tag_names = [t.strip() for t in tags_string.split(",") if t.strip()]
+    transaction.tags = []
+
+    for name in tag_names:
+        name = name[:30]  # Enforce max length
+        tag = Tag.query.filter_by(name=name, user_id=user_id).first()
+        if not tag:
+            tag = Tag(name=name, user_id=user_id)
+            db.session.add(tag)
+            db.session.flush()
+        transaction.tags.append(tag)
+
+    db.session.commit()
 
 
 @transactions_bp.route("/")
@@ -126,7 +147,12 @@ def create():
             data["category_id"] = form.category_id.data
 
         try:
-            transaction_service.create_transaction(data, current_user)
+            txn = transaction_service.create_transaction(data, current_user)
+
+            # Handle tags
+            if form.tags.data and form.tags.data.strip():
+                _apply_tags(txn, form.tags.data, current_user.id)
+
             flash("Transaktion erfolgreich erstellt.", "success")
             return redirect(url_for("transactions.index"))
         except ValueError as e:
@@ -168,6 +194,7 @@ def edit(id):
                 "scope": transaction.scope.value if transaction.scope else TransactionScope.personal.value,
                 "category_id": transaction.category_id or 0,
                 "description": transaction.description or "",
+                "tags": ", ".join(t.name for t in transaction.tags) if transaction.tags else "",
             },
         )
     else:
@@ -193,6 +220,11 @@ def edit(id):
 
         try:
             transaction_service.update_transaction(id, data, current_user)
+
+            # Handle tags
+            if form.tags.data is not None:
+                _apply_tags(transaction, form.tags.data or "", current_user.id)
+
             flash("Transaktion erfolgreich aktualisiert.", "success")
             return redirect(url_for("transactions.index"))
         except ValueError as e:

@@ -29,6 +29,16 @@ def index():
     Spending/saving accounts in one section, credit cards in a separate section.
     Each account shows its personal/shared scope label.
     """
+    from flask import session
+
+    # Handle view toggle
+    requested_view = request.args.get("view")
+    if requested_view in ("personal", "shared"):
+        session["accounts_view"] = requested_view
+        return redirect(url_for("accounts.index"))
+
+    view_mode = session.get("accounts_view", "personal")
+
     accounts = account_service.get_accounts_for_user(current_user)
 
     # Compute available balances for all accounts
@@ -41,37 +51,20 @@ def index():
         except Exception:
             available_balances[a.id] = a.balance
 
-    # Group: personal (spending/saving/reserve separate), shared (same), credit cards
-    personal_spending = [
-        a for a in accounts if a.scope == AccountScope.personal and a.type == AccountType.spending
-    ]
-    personal_saving = [
-        a for a in accounts if a.scope == AccountScope.personal and a.type == AccountType.saving
-    ]
-    personal_reserve = [
-        a for a in accounts if a.scope == AccountScope.personal and a.type == AccountType.reserve
-    ]
-    shared_spending = [
-        a for a in accounts if a.scope == AccountScope.shared and a.type == AccountType.spending
-    ]
-    shared_saving = [
-        a for a in accounts if a.scope == AccountScope.shared and a.type == AccountType.saving
-    ]
-    shared_reserve = [
-        a for a in accounts if a.scope == AccountScope.shared and a.type == AccountType.reserve
-    ]
-    credit_cards = [
-        a for a in accounts if a.type == AccountType.credit_card
-    ]
+    # Filter by current view
+    scope_filter = AccountScope.personal if view_mode == "personal" else AccountScope.shared
+
+    spending = [a for a in accounts if a.scope == scope_filter and a.type == AccountType.spending]
+    saving = [a for a in accounts if a.scope == scope_filter and a.type == AccountType.saving]
+    reserve = [a for a in accounts if a.scope == scope_filter and a.type == AccountType.reserve]
+    credit_cards = [a for a in accounts if a.type == AccountType.credit_card and a.scope == scope_filter]
 
     return render_template(
         "accounts/index.html",
-        personal_spending=personal_spending,
-        personal_saving=personal_saving,
-        personal_reserve=personal_reserve,
-        shared_spending=shared_spending,
-        shared_saving=shared_saving,
-        shared_reserve=shared_reserve,
+        view_mode=view_mode,
+        spending=spending,
+        saving=saving,
+        reserve=reserve,
         credit_cards=credit_cards,
         available_balances=available_balances,
     )
@@ -153,6 +146,8 @@ def detail(id):
     from app.extensions import db
     from app.models.account import Account
     from app.models.transaction import Transaction
+    from app.services.balance_service import BalanceService
+    from decimal import Decimal
 
     account = db.session.get(Account, id)
     if account is None:
@@ -183,11 +178,103 @@ def detail(id):
             .all()
         )
 
+    # Compute blocked amount breakdown with individual items
+    blocked_sections = []
+    total_blocked = Decimal("0.00")
+    if account.type != AccountType.credit_card:
+        from app.services.balance_service import BalanceService
+        from app.models.transaction import RecurringRule, TransactionType, RecurringFrequency
+        from app.models.planned_expense import PlannedExpense
+        from app.models.budget import SavingContribution
+        from app.models.user import User
+        from datetime import date
+
+        balance_service = BalanceService()
+        owner = db.session.get(User, account.owner_id)
+        today = date.today()
+
+        try:
+            next_income = balance_service.get_next_income_date(owner)
+
+            # Section 1: Recurring expenses due in current cycle (individual rules)
+            due_rules = (
+                RecurringRule.query.filter(
+                    RecurringRule.account_id == account.id,
+                    RecurringRule.active == True,  # noqa: E712
+                    RecurringRule.type == TransactionType.expense,
+                    RecurringRule.next_due_date >= today,
+                    RecurringRule.next_due_date <= next_income,
+                ).all()
+            )
+            if due_rules:
+                items = [{"name": r.name, "amount": r.amount, "date": r.next_due_date.strftime("%d.%m.%Y")} for r in due_rules]
+                section_total = sum(r.amount for r in due_rules)
+                blocked_sections.append({"title": "Daueraufträge (fällig bis nächstes Einkommen)", "items": items, "total": section_total})
+                total_blocked += section_total
+
+            # Section 2: Non-monthly recurring reserves
+            reserve_rules = (
+                RecurringRule.query.filter(
+                    RecurringRule.account_id == account.id,
+                    RecurringRule.active == True,  # noqa: E712
+                    RecurringRule.type == TransactionType.expense,
+                    RecurringRule.next_due_date > next_income,
+                ).all()
+            )
+            reserve_items = []
+            reserve_total = Decimal("0.00")
+            for rule in reserve_rules:
+                if rule.frequency == RecurringFrequency.monthly and rule.interval <= 1:
+                    continue
+                if rule.frequency == RecurringFrequency.daily or rule.frequency == RecurringFrequency.weekly:
+                    continue
+                if rule.frequency == RecurringFrequency.monthly:
+                    total_cycles = rule.interval
+                elif rule.frequency == RecurringFrequency.quarterly:
+                    total_cycles = 3 * rule.interval
+                elif rule.frequency == RecurringFrequency.yearly:
+                    total_cycles = 12 * rule.interval
+                else:
+                    continue
+                monthly_reserve = rule.amount / Decimal(str(total_cycles))
+                months_remaining = max(0, (rule.next_due_date.year - today.year) * 12 + rule.next_due_date.month - today.month)
+                cycles_passed = max(1, total_cycles - months_remaining)
+                cycles_passed = min(cycles_passed, total_cycles - 1) if total_cycles > 1 else 1
+                reserved = (monthly_reserve * Decimal(str(cycles_passed))).quantize(Decimal("0.01"))
+                if reserved > 0:
+                    reserve_items.append({"name": rule.name, "amount": reserved, "date": rule.next_due_date.strftime("%d.%m.%Y")})
+                    reserve_total += reserved
+            if reserve_items:
+                blocked_sections.append({"title": "Rückstellungen (nicht-monatliche Daueraufträge)", "items": reserve_items, "total": reserve_total})
+                total_blocked += reserve_total
+
+            # Section 3: Blocking planned expenses
+            planned = PlannedExpense.query.filter_by(
+                account_id=account.id, blocking=True, resolved=False
+            ).all()
+            planned_items = [{"name": p.name, "amount": p.blocking_amount, "date": ""} for p in planned if p.blocking_amount > 0]
+            if planned_items:
+                section_total = sum(Decimal(str(i["amount"])) for i in planned_items)
+                blocked_sections.append({"title": "Geplante Ausgaben (blockierend)", "items": planned_items, "total": section_total})
+                total_blocked += section_total
+
+            # Section 4: Saving contributions
+            contributions = SavingContribution.query.filter_by(account_id=account.id).all()
+            if contributions:
+                contrib_items = [{"name": f"Sparziel: {c.saving_goal.name}", "amount": c.amount, "date": ""} for c in contributions]
+                section_total = sum(c.amount for c in contributions)
+                blocked_sections.append({"title": "Sparbeiträge", "items": contrib_items, "total": section_total})
+                total_blocked += section_total
+        except Exception:
+            pass
+
     return render_template(
         "accounts/detail.html",
         account=account,
         transactions=transactions,
         open_cc_transactions=open_cc_transactions,
+        blocked_sections=blocked_sections,
+        total_blocked=total_blocked,
     )
 
 

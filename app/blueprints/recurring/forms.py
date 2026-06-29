@@ -118,6 +118,10 @@ class RecurringRuleCreateForm(FlaskForm):
         coerce=int,
         validators=[Optional()],
     )
+    tags = StringField(
+        "Tags (kommagetrennt)",
+        validators=[Length(max=255)],
+    )
     submit = SubmitField("Dauerauftrag erstellen")
 
     def __init__(self, *args, accounts=None, categories=None, **kwargs):
@@ -254,6 +258,10 @@ class RecurringRuleEditForm(FlaskForm):
         "Kategorie",
         coerce=int,
         validators=[Optional()],
+    )
+    tags = StringField(
+        "Tags (kommagetrennt)",
+        validators=[Length(max=255)],
     )
     submit = SubmitField("Speichern")
 

@@ -7,7 +7,11 @@
   {# View toggle #}
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">Übersicht</h1>
-    <div class="btn-group" role="group" aria-label="Ansicht wechseln">
+    <div class="d-flex gap-2 align-items-center">
+      <a href="{{ url_for('transactions.create') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Neue Transaktion
+      </a>
+      <div class="btn-group" role="group" aria-label="Ansicht wechseln">
       <a href="{{ url_for('dashboard.index', view='personal') }}"
          class="btn btn-sm {{ 'btn-primary' if view_mode == 'personal' else 'btn-outline-primary' }}">
         Persönlich
@@ -16,6 +20,7 @@
          class="btn btn-sm {{ 'btn-primary' if view_mode == 'shared' else 'btn-outline-primary' }}">
         Gemeinsam
       </a>
+    </div>
     </div>
   </div>
 
@@ -120,6 +125,22 @@
       </div>
     </div>
 
+    {# Spending by Category Pie Chart #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Ausgaben nach Kategorie</h5>
+          {% if spending_by_category %}
+          <div style="position: relative; height: 200px;">
+            <canvas id="spendingPieChart"></canvas>
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">Keine Ausgaben im aktuellen Zyklus.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
     {# Top 3 Budgets #}
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card h-100">
@@ -178,6 +199,20 @@
         <div class="card-body">
           <h5 class="card-title">Geplante Ausgaben</h5>
           {% if unresolved_planned %}
+          <div class="d-flex justify-content-between mb-2 pb-2" style="border-bottom: 1px solid var(--border-color);">
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">Geschätzt</span>
+            {% set min_sum = unresolved_planned|map(attribute='blocking_amount')|sum %}
+            {% set max_sum_parts = [] %}
+            {% for e in unresolved_planned %}
+              {% if max_sum_parts.append(e.amount_max if e.amount_max else e.blocking_amount) %}{% endif %}
+            {% endfor %}
+            {% set max_sum = max_sum_parts|sum %}
+            {% if min_sum == max_sum %}
+            <span class="fw-bold text-danger">{{ "%.2f"|format(min_sum) }} €</span>
+            {% else %}
+            <span class="fw-bold text-danger">{{ "%.2f"|format(min_sum) }} – {{ "%.2f"|format(max_sum) }} €</span>
+            {% endif %}
+          </div>
           <ul class="list-group list-group-flush">
             {% for expense in unresolved_planned[:5] %}
             <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
@@ -257,6 +292,10 @@
         <div class="card-body">
           <h5 class="card-title">Offene Kreditkartenzahlungen</h5>
           {% if open_cc_payments %}
+          <div class="d-flex justify-content-between mb-2 pb-2" style="border-bottom: 1px solid var(--border-color);">
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">Gesamt offen</span>
+            <span class="fw-bold text-danger">{{ "%.2f"|format(open_cc_payments|sum(attribute='amount')) }} €</span>
+          </div>
           <ul class="list-group list-group-flush">
             {% for txn in open_cc_payments %}
             <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
@@ -360,6 +399,22 @@
       </div>
     </div>
 
+    {# Shared Spending by Category Pie Chart #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Ausgaben nach Kategorie</h5>
+          {% if spending_by_category %}
+          <div style="position: relative; height: 200px;">
+            <canvas id="sharedSpendingPieChart"></canvas>
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">Keine Ausgaben im aktuellen Zyklus.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
     {# Shared Budget Utilisation #}
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card h-100">
@@ -385,6 +440,110 @@
           {% else %}
           <p class="text-muted mb-1">Keine gemeinsamen Budgets vorhanden.</p>
           <a href="{{ url_for('budgets.create') }}" class="btn btn-sm btn-outline-primary">Budget erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Household Split Breakdown #}
+    <div class="col-12">
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-people me-2"></i>Haushaltsaufteilung</span>
+          <button class="btn btn-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#splitConfig">
+            <i class="bi bi-gear"></i>
+          </button>
+        </div>
+        <div class="card-body">
+          <!-- Config form (collapsible) -->
+          <div class="collapse mb-3" id="splitConfig">
+            <form method="POST" action="{{ url_for('dashboard.set_household_split') }}" class="row g-2 align-items-end p-3" style="background: var(--bg-body); border-radius: var(--radius-sm);">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="col-md-3">
+                <label class="form-label" style="font-size: 0.7rem;">Konto</label>
+                <select name="split_account_id" class="form-select form-select-sm">
+                  {% for acc in household_split.accounts %}
+                  <option value="{{ acc.id }}" {{ 'selected' if household_split.account_id == acc.id else '' }}>{{ acc.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" style="font-size: 0.7rem;">Person 1 Tag</label>
+                <input type="text" name="person1_tag" class="form-control form-control-sm" value="{{ household_split.person1.name }}" placeholder="z.B. Paul">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" style="font-size: 0.7rem;">Person 2 Tag</label>
+                <input type="text" name="person2_tag" class="form-control form-control-sm" value="{{ household_split.person2.name }}" placeholder="z.B. Jessy">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" style="font-size: 0.7rem;">Geteilt Tag</label>
+                <input type="text" name="shared_tag" class="form-control form-control-sm" value="{{ household_split.shared.name }}" placeholder="z.B. Geteilt">
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Speichern</button>
+              </div>
+            </form>
+          </div>
+
+          {% if household_split.configured and household_split.account_id %}
+          <div class="row">
+            <!-- Person 1 -->
+            <div class="col-md-4">
+              <div class="mb-2 d-flex justify-content-between">
+                <span class="section-title">{{ household_split.person1.name }}</span>
+                <span class="fw-bold" style="color: var(--accent);">{{ "%.2f"|format(household_split.person1.total) }} €</span>
+              </div>
+              {% for item in household_split.person1["items"] %}
+              <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                <span style="color: var(--text-secondary);">{{ item.name }}</span>
+                <span style="color: var(--text-primary);">{{ "%.2f"|format(item.amount) }} €</span>
+              </div>
+              {% endfor %}
+              <hr style="border-color: var(--border-color); margin: 0.5rem 0;">
+              <div class="d-flex justify-content-between">
+                <span style="color: var(--text-primary); font-weight: 600;">Zahlung</span>
+                <span class="fw-bold text-success">{{ "%.2f"|format(household_split.person1.payment) }} €</span>
+              </div>
+            </div>
+            <!-- Shared -->
+            <div class="col-md-4">
+              <div class="mb-2 d-flex justify-content-between">
+                <span class="section-title">{{ household_split.shared.name }}</span>
+                <span class="fw-bold" style="color: var(--accent);">{{ "%.2f"|format(household_split.shared.total) }} €</span>
+              </div>
+              {% for item in household_split.shared["items"] %}
+              <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                <span style="color: var(--text-secondary);">{{ item.name }}</span>
+                <span style="color: var(--text-primary);">{{ "%.2f"|format(item.amount) }} €</span>
+              </div>
+              {% endfor %}
+              <hr style="border-color: var(--border-color); margin: 0.5rem 0;">
+              <div class="d-flex justify-content-between">
+                <span style="color: var(--text-muted); font-size: 0.8rem;">50% je Person</span>
+                <span style="color: var(--text-secondary);">{{ "%.2f"|format(household_split.shared.total / 2) }} €</span>
+              </div>
+            </div>
+            <!-- Person 2 -->
+            <div class="col-md-4">
+              <div class="mb-2 d-flex justify-content-between">
+                <span class="section-title">{{ household_split.person2.name }}</span>
+                <span class="fw-bold" style="color: var(--accent);">{{ "%.2f"|format(household_split.person2.total) }} €</span>
+              </div>
+              {% for item in household_split.person2["items"] %}
+              <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                <span style="color: var(--text-secondary);">{{ item.name }}</span>
+                <span style="color: var(--text-primary);">{{ "%.2f"|format(item.amount) }} €</span>
+              </div>
+              {% endfor %}
+              <hr style="border-color: var(--border-color); margin: 0.5rem 0;">
+              <div class="d-flex justify-content-between">
+                <span style="color: var(--text-primary); font-weight: 600;">Zahlung</span>
+                <span class="fw-bold text-success">{{ "%.2f"|format(household_split.person2.payment) }} €</span>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">Bitte konfigurieren Sie die Aufteilung über das Zahnrad-Symbol oben.</p>
           {% endif %}
         </div>
       </div>
@@ -442,4 +601,68 @@
   </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if spending_by_category %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Personal chart
+    const ctx = document.getElementById('spendingPieChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [{% for cat in spending_by_category %}'{{ cat.name }}'{{ ', ' if not loop.last }}{% endfor %}],
+                datasets: [{
+                    data: [{% for cat in spending_by_category %}{{ cat.amount }}{{ ', ' if not loop.last }}{% endfor %}],
+                    backgroundColor: [{% for cat in spending_by_category %}'{{ cat.color }}'{{ ', ' if not loop.last }}{% endfor %}],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#b0b0b0', font: { size: 11 }, padding: 8, boxWidth: 12 } },
+                    tooltip: { backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#b0b0b0', borderColor: '#2a2a2a', borderWidth: 1,
+                        callbacks: { label: function(c) { return c.label + ': ' + c.parsed.toFixed(2) + ' €'; } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Shared chart
+    const ctx2 = document.getElementById('sharedSpendingPieChart');
+    if (ctx2) {
+        new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: [{% for cat in spending_by_category %}'{{ cat.name }}'{{ ', ' if not loop.last }}{% endfor %}],
+                datasets: [{
+                    data: [{% for cat in spending_by_category %}{{ cat.amount }}{{ ', ' if not loop.last }}{% endfor %}],
+                    backgroundColor: [{% for cat in spending_by_category %}'{{ cat.color }}'{{ ', ' if not loop.last }}{% endfor %}],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#b0b0b0', font: { size: 11 }, padding: 8, boxWidth: 12 } },
+                    tooltip: { backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#b0b0b0', borderColor: '#2a2a2a', borderWidth: 1,
+                        callbacks: { label: function(c) { return c.label + ': ' + c.parsed.toFixed(2) + ' €'; } }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endif %}
 {% endblock %}

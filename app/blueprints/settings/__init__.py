@@ -44,6 +44,7 @@ def index():
 
         # Update user preferences
         current_user.income_day = form.income_day.data
+        current_user.shared_income_day = form.shared_income_day.data
         current_user.date_format = form.date_format.data
         current_user.marginal_tax_rate = form.marginal_tax_rate.data
         current_user.social_security_rate = form.social_security_rate.data

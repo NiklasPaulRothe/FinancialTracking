@@ -107,14 +107,60 @@
 <div class="page-header">
     <h1><i class="bi bi-bank me-2"></i>Konten</h1>
     <div class="actions">
+        <div class="btn-group me-2" role="group">
+            <a href="{{ url_for('accounts.index', view='personal') }}"
+               class="btn btn-sm {{ 'btn-primary' if view_mode == 'personal' else 'btn-secondary' }}">
+                Persönlich
+            </a>
+            <a href="{{ url_for('accounts.index', view='shared') }}"
+               class="btn btn-sm {{ 'btn-primary' if view_mode == 'shared' else 'btn-secondary' }}">
+                Gemeinsam
+            </a>
+        </div>
+        <a href="{{ url_for('transactions.create') }}" class="btn btn-secondary btn-sm me-1">
+            <i class="bi bi-plus-lg me-1"></i>Neue Transaktion
+        </a>
         <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i>Neues Konto
         </a>
     </div>
 </div>
 
-{{ account_box("Persönliche Konten", "person", personal_spending, personal_saving, personal_reserve) }}
-{{ account_box("Gemeinsame Konten", "people", shared_spending, shared_saving, shared_reserve) }}
+<!-- Konten -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-{{ 'person' if view_mode == 'personal' else 'people' }} me-2"></i>{{ 'Persönliche' if view_mode == 'personal' else 'Gemeinsame' }} Konten</span>
+        <span class="badge bg-secondary">{{ spending|length + reserve|length + saving|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if spending or reserve or saving %}
+            {% if spending %}
+            <div class="px-3 pt-3 pb-1">
+                <span class="section-title">Girokonten</span>
+            </div>
+            {{ account_table(spending) }}
+            {% endif %}
+            {% if reserve %}
+            <div class="px-3 pt-3 pb-1">
+                <span class="section-title">Rücklagenkonten</span>
+            </div>
+            {{ account_table(reserve) }}
+            {% endif %}
+            {% if saving %}
+            <div class="px-3 pt-3 pb-1">
+                <span class="section-title">Sparkonten</span>
+            </div>
+            {{ account_table(saving) }}
+            {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-bank d-block"></i>
+            <p>Keine Konten vorhanden.</p>
+            <a href="{{ url_for('accounts.create') }}" class="btn btn-primary btn-sm">Konto erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 
 <!-- Kreditkarten -->
 <div class="card mb-4">

@@ -3,6 +3,9 @@
 {% block title %}Daueraufträge — Haushaltsbuch{% endblock %}
 
 {% block content %}
+
+{% macro freq_display(rule) %}{% if rule.interval > 1 %}{{ rule.interval }}-{% endif %}{% if rule.frequency.value == "daily" %}Täglich{% elif rule.frequency.value == "weekly" %}Wöchentlich{% elif rule.frequency.value == "monthly" %}Monatlich{% elif rule.frequency.value == "quarterly" %}Vierteljährlich{% elif rule.frequency.value == "yearly" %}Jährlich{% endif %}{% endmacro %}
+
 <div class="page-header">
     <h1><i class="bi bi-arrow-repeat me-2"></i>Daueraufträge</h1>
     <div class="actions">
@@ -36,21 +39,14 @@
                 <tbody>
                     {% for rule in rules %}
                     <tr>
-                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}</td>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}{% if rule.tags %}<br>{% for tag in rule.tags %}<span class="badge bg-secondary me-1" style="font-size: 0.65rem;">{{ tag.name }}</span>{% endfor %}{% endif %}</td>
                         <td>
                             {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
                             {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>
                             {% elif rule.type.value == "transfer" %}<span class="badge bg-secondary">Umbuchung</span>
                             {% endif %}
                         </td>
-                        <td style="color: var(--text-secondary);">
-                            {% if rule.frequency.value == "daily" %}Täglich
-                            {% elif rule.frequency.value == "weekly" %}Wöchentlich
-                            {% elif rule.frequency.value == "monthly" %}Monatlich
-                            {% elif rule.frequency.value == "quarterly" %}Vierteljährlich
-                            {% elif rule.frequency.value == "yearly" %}Jährlich
-                            {% endif %}
-                        </td>
+                        <td style="color: var(--text-secondary);">{{ freq_display(rule) }}</td>
                         <td class="text-end fw-medium {{ 'text-success' if rule.type.value == 'income' else 'text-danger' }}">
                             {{ "%.2f"|format(rule.amount) }} €
                         </td>
@@ -77,18 +73,25 @@
                 </tbody>
                 <tfoot>
                     <tr style="border-top: 2px solid var(--border-light);">
-                        <td colspan="3" style="color: var(--text-primary); font-weight: 600;">Summe</td>
-                        {% set income_sum = rules|selectattr('type.value', 'equalto', 'income')|map(attribute='amount')|sum %}
-                        {% set expense_sum = rules|selectattr('type.value', 'equalto', 'expense')|map(attribute='amount')|sum %}
-                        {% set transfer_sum = rules|selectattr('type.value', 'equalto', 'transfer')|map(attribute='amount')|sum %}
-                        {% set net = income_sum - expense_sum - transfer_sum %}
+                        <td colspan="3" style="color: var(--text-primary); font-weight: 600;">Monatlich</td>
+                        {% set ns = namespace(income=0, expense=0, transfer=0) %}
+                        {% for rule in rules %}
+                            {% if rule.type.value == 'income' %}
+                                {% set ns.income = ns.income + monthly_amounts.get(rule.id, 0) %}
+                            {% elif rule.type.value == 'expense' %}
+                                {% set ns.expense = ns.expense + monthly_amounts.get(rule.id, 0) %}
+                            {% elif rule.type.value == 'transfer' %}
+                                {% set ns.transfer = ns.transfer + monthly_amounts.get(rule.id, 0) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% set net = ns.income - ns.expense - ns.transfer %}
                         <td class="text-end fw-bold {{ 'text-success' if net >= 0 else 'text-danger' }}">
                             {{ "%+.2f"|format(net) }} €
                         </td>
                         <td colspan="3" style="color: var(--text-muted); font-size: 0.8rem;">
-                            <span class="text-success">+{{ "%.2f"|format(income_sum) }}</span> /
-                            <span class="text-danger">-{{ "%.2f"|format(expense_sum) }}</span>
-                            {% if transfer_sum %} / <span style="color: var(--accent);">↗{{ "%.2f"|format(transfer_sum) }}</span>{% endif %}
+                            <span class="text-success">+{{ "%.2f"|format(ns.income) }}</span> /
+                            <span class="text-danger">-{{ "%.2f"|format(ns.expense) }}</span>
+                            {% if ns.transfer %} / <span style="color: var(--accent);">↗{{ "%.2f"|format(ns.transfer) }}</span>{% endif %}
                         </td>
                     </tr>
                 </tfoot>
@@ -106,7 +109,114 @@
 {% endmacro %}
 
 {{ recurring_table(active_personal, "Persönliche Daueraufträge", "person") }}
-{{ recurring_table(active_shared, "Gemeinsame Daueraufträge", "people") }}
+
+<!-- Gemeinsame Daueraufträge (with incoming transfers from personal) -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-people me-2"></i>Gemeinsame Daueraufträge</span>
+        <span class="badge bg-secondary">{{ active_shared|length + incoming_shared_transfers|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if active_shared or incoming_shared_transfers %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 22%;">Name</th>
+                        <th style="width: 10%;">Typ</th>
+                        <th style="width: 12%;">Frequenz</th>
+                        <th style="width: 14%;" class="text-end">Betrag</th>
+                        <th style="width: 14%;">Nächste Fälligkeit</th>
+                        <th style="width: 8%;">Status</th>
+                        <th style="width: 20%;" class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in incoming_shared_transfers %}
+                    <tr style="opacity: 0.8;">
+                        <td style="color: var(--text-primary); font-weight: 500;">
+                            <i class="bi bi-arrow-right me-1" style="color: var(--accent);"></i>{{ rule.name }}
+                        </td>
+                        <td><span class="badge bg-success">Eingang</span></td>
+                        <td style="color: var(--text-secondary);">{{ freq_display(rule) }}</td>
+                        <td class="text-end fw-medium text-success">{{ "%.2f"|format(rule.amount) }} €</td>
+                        <td style="color: var(--text-secondary);">{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
+                        <td><span class="badge bg-secondary">Persönlich</span></td>
+                        <td class="text-end" style="color: var(--text-muted); font-size: 0.75rem;">aus Persönlich</td>
+                    </tr>
+                    {% endfor %}
+                    {% for rule in active_shared %}
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}{% if rule.tags %}<br>{% for tag in rule.tags %}<span class="badge bg-secondary me-1" style="font-size: 0.65rem;">{{ tag.name }}</span>{% endfor %}{% endif %}</td>
+                        <td>
+                            {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
+                            {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>
+                            {% elif rule.type.value == "transfer" %}<span class="badge bg-secondary">Umbuchung</span>
+                            {% endif %}
+                        </td>
+                        <td style="color: var(--text-secondary);">{{ freq_display(rule) }}</td>
+                        <td class="text-end fw-medium {{ 'text-success' if rule.type.value == 'income' else 'text-danger' }}">
+                            {{ "%.2f"|format(rule.amount) }} €
+                        </td>
+                        <td style="color: var(--text-secondary);">{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
+                        <td><span class="badge bg-success">Aktiv</span></td>
+                        <td class="text-end">
+                            {% if rule.type == TransactionType.transfer %}
+                            <a href="{{ url_for('recurring.splits', id=rule.id) }}" class="btn btn-secondary btn-sm me-1" title="Splits">
+                                <i class="bi bi-pie-chart"></i>
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('recurring.edit', id=rule.id) }}" class="btn btn-secondary btn-sm me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('recurring.toggle', id=rule.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" title="Deaktivieren">
+                                    <i class="bi bi-pause-fill"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="border-top: 2px solid var(--border-light);">
+                        <td colspan="3" style="color: var(--text-primary); font-weight: 600;">Monatlich</td>
+                        {% set ns = namespace(income=0, expense=0, transfer=0) %}
+                        {% for rule in incoming_shared_transfers %}
+                            {% set ns.income = ns.income + monthly_amounts.get(rule.id, 0) %}
+                        {% endfor %}
+                        {% for rule in active_shared %}
+                            {% if rule.type.value == 'income' %}
+                                {% set ns.income = ns.income + monthly_amounts.get(rule.id, 0) %}
+                            {% elif rule.type.value == 'expense' %}
+                                {% set ns.expense = ns.expense + monthly_amounts.get(rule.id, 0) %}
+                            {% elif rule.type.value == 'transfer' %}
+                                {% set ns.transfer = ns.transfer + monthly_amounts.get(rule.id, 0) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% set net = ns.income - ns.expense - ns.transfer %}
+                        <td class="text-end fw-bold {{ 'text-success' if net >= 0 else 'text-danger' }}">
+                            {{ "%+.2f"|format(net) }} €
+                        </td>
+                        <td colspan="3" style="color: var(--text-muted); font-size: 0.8rem;">
+                            <span class="text-success">+{{ "%.2f"|format(ns.income) }}</span> /
+                            <span class="text-danger">-{{ "%.2f"|format(ns.expense) }}</span>
+                            {% if ns.transfer %} / <span style="color: var(--accent);">↗{{ "%.2f"|format(ns.transfer) }}</span>{% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-people d-block"></i>
+            <p>Keine gemeinsamen Daueraufträge vorhanden.</p>
+            <a href="{{ url_for('recurring.create') }}" class="btn btn-primary btn-sm">Dauerauftrag erstellen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
 
 {% if inactive_rules %}
 <!-- Inaktive Daueraufträge -->
@@ -132,21 +242,14 @@
                 <tbody>
                     {% for rule in inactive_rules %}
                     <tr>
-                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}</td>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}{% if rule.tags %}<br>{% for tag in rule.tags %}<span class="badge bg-secondary me-1" style="font-size: 0.65rem;">{{ tag.name }}</span>{% endfor %}{% endif %}</td>
                         <td>
                             {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
                             {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>
                             {% elif rule.type.value == "transfer" %}<span class="badge bg-secondary">Umbuchung</span>
                             {% endif %}
                         </td>
-                        <td style="color: var(--text-secondary);">
-                            {% if rule.frequency.value == "daily" %}Täglich
-                            {% elif rule.frequency.value == "weekly" %}Wöchentlich
-                            {% elif rule.frequency.value == "monthly" %}Monatlich
-                            {% elif rule.frequency.value == "quarterly" %}Vierteljährlich
-                            {% elif rule.frequency.value == "yearly" %}Jährlich
-                            {% endif %}
-                        </td>
+                        <td style="color: var(--text-secondary);">{{ freq_display(rule) }}</td>
                         <td class="text-end fw-medium" style="color: var(--text-secondary);">{{ "%.2f"|format(rule.amount) }} €</td>
                         <td style="color: var(--text-secondary);">{{ rule.next_due_date.strftime("%d.%m.%Y") }}</td>
                         <td><span class="badge bg-danger">Inaktiv</span></td>

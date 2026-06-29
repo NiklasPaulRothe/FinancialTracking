@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from app.extensions import db
 from app.models.account import Account, AccountType
-from app.models.transaction import RecurringRule, TransactionType
+from app.models.transaction import RecurringRule, RecurringFrequency, TransactionType
 from app.models.user import User
 from app.services.banking_day_service import BankingDayService
 
@@ -64,6 +64,9 @@ class BalanceService:
 
         # Subtract recurring expense rules due between today and next income date
         available -= self._sum_recurring_expenses_due(account)
+
+        # Subtract accumulated reserves for non-monthly recurring expenses
+        available -= self._sum_recurring_cycle_reserves(account)
 
         # Subtract blocking planned expenses (Req 8.4: skip if all amounts null)
         available -= self._sum_blocking_planned_expenses(account)
@@ -265,6 +268,85 @@ class BalanceService:
         )
 
         return Decimal(str(total))
+
+    def _sum_recurring_cycle_reserves(self, account: Account) -> Decimal:
+        """Calculate accumulated reserves for non-monthly recurring expenses.
+
+        For recurring rules that fire less frequently than monthly (quarterly, yearly),
+        we accumulate 1/N of the amount per income cycle that has passed since
+        the last payment, where N is the number of cycles between payments.
+
+        For example: a yearly 120€ subscription accumulates 10€ per month.
+        If 6 months have passed since the last payment, 60€ is reserved.
+
+        Only considers expenses that are NOT due in the current cycle
+        (those are handled by _sum_recurring_expenses_due).
+
+        Args:
+            account: The account to check.
+
+        Returns:
+            Total reserved amount for non-monthly recurring expenses.
+        """
+        today = date.today()
+        owner = db.session.get(User, account.owner_id)
+        if owner is None:
+            return Decimal("0.0")
+
+        next_income = self.get_next_income_date(owner)
+
+        # Get non-monthly recurring expense rules for this account
+        # that are NOT due in the current cycle (those are already counted)
+        rules = (
+            RecurringRule.query.filter(
+                RecurringRule.account_id == account.id,
+                RecurringRule.active == True,  # noqa: E712
+                RecurringRule.type == TransactionType.expense,
+                # Exclude rules due in current cycle (already counted above)
+                RecurringRule.next_due_date > next_income,
+            )
+            .all()
+        )
+
+        total_reserved = Decimal("0.0")
+
+        for rule in rules:
+            # Calculate total cycles between payments
+            if rule.frequency == RecurringFrequency.daily:
+                continue  # Daily rules are always due soon, skip
+            elif rule.frequency == RecurringFrequency.weekly:
+                continue  # Weekly rules are handled by due-in-cycle logic
+            elif rule.frequency == RecurringFrequency.monthly:
+                if rule.interval <= 1:
+                    continue  # Standard monthly, handled by due-in-cycle
+                total_cycles = rule.interval  # e.g. interval=2 means every 2 months
+            elif rule.frequency == RecurringFrequency.quarterly:
+                total_cycles = 3 * rule.interval
+            elif rule.frequency == RecurringFrequency.yearly:
+                total_cycles = 12 * rule.interval
+            else:
+                continue
+
+            # Monthly reserve amount
+            monthly_reserve = rule.amount / Decimal(str(total_cycles))
+
+            # How many cycles have passed since the rule was last paid?
+            # total_cycles - months_remaining = cycles already elapsed
+            # We reserve at least for the current cycle (minimum 1)
+            months_remaining = (
+                (rule.next_due_date.year - today.year) * 12
+                + rule.next_due_date.month - today.month
+            )
+            months_remaining = max(0, months_remaining)
+            cycles_passed = max(1, total_cycles - months_remaining)
+
+            # Cap at total_cycles - 1 (the last cycle is when it's due, handled by due-in-cycle)
+            cycles_passed = min(cycles_passed, total_cycles - 1) if total_cycles > 1 else 1
+
+            # Reserve = monthly_reserve * cycles_passed
+            total_reserved += monthly_reserve * Decimal(str(cycles_passed))
+
+        return total_reserved.quantize(Decimal("0.01"))
 
     def _sum_blocking_planned_expenses(self, account: Account) -> Decimal:
         """Sum unresolved blocking planned expenses for the account.

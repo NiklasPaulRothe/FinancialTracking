@@ -35,6 +35,9 @@ class User(UserMixin, db.Model):
     )
     password_hash = db.Column(db.String(255), nullable=False)
     income_day = db.Column(db.Integer, nullable=False)
+    shared_income_day = db.Column(db.Integer, nullable=True)
+    household_split_account_id = db.Column(db.Integer, nullable=True)
+    household_split_tags = db.Column(db.String(500), nullable=True)  # JSON: {"person1": "Paul", "person2": "Jessy", "shared": "Geteilt"}
     date_format = db.Column(
         db.String(10), nullable=False, server_default="DD.MM.YYYY", default="DD.MM.YYYY"
     )

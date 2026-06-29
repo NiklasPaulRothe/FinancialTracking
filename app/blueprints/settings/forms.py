@@ -17,6 +17,7 @@ from wtforms.validators import (
     NumberRange,
     Length,
     EqualTo,
+    Optional,
 )
 from flask_wtf import FlaskForm
 
@@ -35,6 +36,17 @@ class SettingsForm(FlaskForm):
                 min=1,
                 max=31,
                 message="Gehaltseingang muss zwischen 1 und 31 liegen.",
+            ),
+        ],
+    )
+    shared_income_day = IntegerField(
+        "Gemeinsamer Gehaltseingang (Tag des Monats)",
+        validators=[
+            Optional(),
+            NumberRange(
+                min=1,
+                max=31,
+                message="Gemeinsamer Gehaltseingang muss zwischen 1 und 31 liegen.",
             ),
         ],
     )

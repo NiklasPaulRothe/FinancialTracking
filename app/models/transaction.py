@@ -93,6 +93,22 @@ transaction_tags = db.Table(
     ),
 )
 
+recurring_rule_tags = db.Table(
+    "recurring_rule_tags",
+    db.Column(
+        "recurring_rule_id",
+        db.Integer,
+        db.ForeignKey("recurring_rules.id"),
+        primary_key=True,
+    ),
+    db.Column(
+        "tag_id",
+        db.Integer,
+        db.ForeignKey("tags.id"),
+        primary_key=True,
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # Transaction model
@@ -449,6 +465,9 @@ class RecurringRule(db.Model):
     )
     splits = db.relationship(
         "RecurringRuleSplit", back_populates="recurring_rule", cascade="all, delete-orphan"
+    )
+    tags = db.relationship(
+        "Tag", secondary=recurring_rule_tags, backref=db.backref("recurring_rules", lazy="dynamic")
     )
 
     __table_args__ = (

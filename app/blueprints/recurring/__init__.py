@@ -15,6 +15,7 @@ from app.models.category import Category
 from app.models.transaction import (
     RecurringFrequency,
     RecurringRule,
+    Tag,
     TransactionScope,
     TransactionType,
 )
@@ -33,6 +34,20 @@ def _get_user_accounts():
 def _get_user_categories():
     """Get categories for the current user."""
     return Category.query.filter_by(user_id=current_user.id).all()
+
+
+def _apply_rule_tags(rule, tags_string, user_id):
+    """Parse comma-separated tag names and link them to a recurring rule."""
+    tag_names = [t.strip() for t in tags_string.split(",") if t.strip()]
+    rule.tags = []
+    for name in tag_names:
+        name = name[:30]
+        tag = Tag.query.filter_by(name=name, user_id=user_id).first()
+        if not tag:
+            tag = Tag(name=name, user_id=user_id)
+            db.session.add(tag)
+            db.session.flush()
+        rule.tags.append(tag)
 
 
 @recurring_bp.route("/")
@@ -56,11 +71,50 @@ def index():
     active_personal = [r for r in active_rules if r.scope.value == "personal"]
     active_shared = [r for r in active_rules if r.scope.value == "shared"]
 
+    # Find recurring transfers from personal to shared accounts (show as income in shared box)
+    from app.models.account import Account, AccountScope
+    incoming_shared_transfers = []
+    for r in active_personal:
+        if r.type == TransactionType.transfer and r.destination_account_id:
+            dest = db.session.get(Account, r.destination_account_id)
+            if dest and dest.scope == AccountScope.shared:
+                incoming_shared_transfers.append(r)
+
+    # Compute monthly equivalents for sum calculations
+    def monthly_amount(rule):
+        """Convert rule amount to monthly equivalent based on frequency and interval."""
+        from decimal import Decimal
+        amount = rule.amount
+        freq = rule.frequency.value
+        interval = rule.interval
+
+        if freq == "daily":
+            return amount * Decimal("30") / Decimal(str(interval))
+        elif freq == "weekly":
+            return amount * Decimal("4.33") / Decimal(str(interval))
+        elif freq == "monthly":
+            return amount / Decimal(str(interval))
+        elif freq == "quarterly":
+            return amount / (Decimal("3") * Decimal(str(interval)))
+        elif freq == "yearly":
+            return amount / (Decimal("12") * Decimal(str(interval)))
+        return amount
+
+    # Build dicts mapping rule id -> monthly amount
+    monthly_amounts = {}
+    for r in active_rules:
+        monthly_amounts[r.id] = float(monthly_amount(r))
+    for r in incoming_shared_transfers:
+        if r.id not in monthly_amounts:
+            monthly_amounts[r.id] = float(monthly_amount(r))
+
     return render_template(
         "recurring/index.html",
         active_personal=active_personal,
         active_shared=active_shared,
+        incoming_shared_transfers=incoming_shared_transfers,
         inactive_rules=inactive_rules,
+        monthly_amounts=monthly_amounts,
         TransactionType=TransactionType,
     )
 
@@ -92,6 +146,11 @@ def create():
             user_id=current_user.id,
         )
         db.session.add(rule)
+        db.session.flush()
+
+        if form.tags.data and form.tags.data.strip():
+            _apply_rule_tags(rule, form.tags.data, current_user.id)
+
         db.session.commit()
         flash("Dauerauftrag erfolgreich erstellt.", "success")
         return redirect(url_for("recurring.index"))
@@ -129,6 +188,7 @@ def edit(id):
                 "destination_account_id": rule.destination_account_id or 0,
                 "scope": rule.scope.value,
                 "category_id": rule.category_id or 0,
+                "tags": ", ".join(t.name for t in rule.tags) if rule.tags else "",
             },
         )
     else:
@@ -145,6 +205,9 @@ def edit(id):
         rule.account_id = form.account_id.data
         rule.destination_account_id = form.destination_account_id.data
         rule.category_id = form.category_id.data
+
+        _apply_rule_tags(rule, form.tags.data or "", current_user.id)
+
         db.session.commit()
         flash("Dauerauftrag erfolgreich aktualisiert.", "success")
         return redirect(url_for("recurring.index"))

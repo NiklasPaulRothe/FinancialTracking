@@ -141,7 +141,7 @@ class AccountBalanceSnapshot(db.Model):
     )
     balance = db.Column(db.Numeric(12, 2), nullable=False)
     snapshot_date = db.Column(db.Date, nullable=False)
-    source = db.Column(db.Enum(SnapshotSource), nullable=False)
+    source = db.Column(db.Enum(SnapshotSource, name="snapshot_source"), nullable=False)
     created_at = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )

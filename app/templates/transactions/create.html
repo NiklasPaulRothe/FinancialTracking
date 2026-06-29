@@ -86,6 +86,15 @@
                         {% endfor %}
                     </div>
 
+                    <div class="mb-4">
+                        {{ form.tags.label(class="form-label") }}
+                        {{ form.tags(class="form-control", placeholder="z.B. Haushalt, Einkauf, Auto") }}
+                        <small class="form-text">Mehrere Tags mit Komma trennen. Neue Tags werden automatisch erstellt.</small>
+                        {% for error in form.tags.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary btn-lg") }}
                     </div>

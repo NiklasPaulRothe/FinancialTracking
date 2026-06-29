@@ -89,6 +89,12 @@ class TransactionCreateForm(FlaskForm):
             ),
         ],
     )
+    tags = StringField(
+        "Tags (kommagetrennt)",
+        validators=[
+            Length(max=255),
+        ],
+    )
     submit = SubmitField("Transaktion erstellen")
 
     def __init__(self, *args, accounts=None, categories=None, **kwargs):
@@ -204,6 +210,12 @@ class TransactionEditForm(FlaskForm):
                 max=255,
                 message="Beschreibung darf maximal 255 Zeichen lang sein.",
             ),
+        ],
+    )
+    tags = StringField(
+        "Tags (kommagetrennt)",
+        validators=[
+            Length(max=255),
         ],
     )
     submit = SubmitField("Speichern")

@@ -56,6 +56,54 @@
     </div>
 </div>
 
+{% if blocked_sections %}
+<!-- Blocked Amount Breakdown -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#blockedDetails">
+        <span><i class="bi bi-lock me-2"></i>Blockierter Betrag</span>
+        <div>
+            <span class="fw-bold text-danger me-2">{{ "%.2f"|format(total_blocked) }} €</span>
+            <i class="bi bi-chevron-down"></i>
+        </div>
+    </div>
+    <div class="collapse" id="blockedDetails">
+        <div class="card-body p-0">
+            {% for section in blocked_sections %}
+            <div class="px-3 pt-3 pb-1">
+                <div class="d-flex justify-content-between">
+                    <span class="section-title">{{ section["title"] }}</span>
+                    <span class="section-title text-danger">{{ "%.2f"|format(section["total"]) }} €</span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <tbody>
+                        {% for item in section["items"] %}
+                        <tr>
+                            <td style="color: var(--text-primary); padding-left: 1.5rem;">{{ item.name }}</td>
+                            {% if item.date %}
+                            <td style="color: var(--text-muted); font-size: 0.8rem;">{{ item.date }}</td>
+                            {% else %}
+                            <td></td>
+                            {% endif %}
+                            <td class="text-end fw-medium text-danger">{{ "%.2f"|format(item.amount) }} €</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+            <div class="px-3 py-2" style="border-top: 2px solid var(--border-light);">
+                <div class="d-flex justify-content-between">
+                    <span style="color: var(--text-primary); font-weight: 600;">Gesamt blockiert</span>
+                    <span class="fw-bold text-danger">{{ "%.2f"|format(total_blocked) }} €</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if open_cc_transactions %}
 <!-- Open Credit Card Payments -->
 <div class="card mb-4">

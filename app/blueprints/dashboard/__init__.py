@@ -141,6 +141,32 @@ def set_income():
     return redirect(url_for("dashboard.index"))
 
 
+@dashboard_bp.route("/set-household-split", methods=["POST"])
+@login_required
+def set_household_split():
+    """Configure household split tags and account."""
+    import json
+
+    account_id = request.form.get("split_account_id", type=int)
+    person1_tag = request.form.get("person1_tag", "").strip()
+    person2_tag = request.form.get("person2_tag", "").strip()
+    shared_tag = request.form.get("shared_tag", "").strip()
+
+    if not person1_tag or not person2_tag or not shared_tag:
+        flash("Bitte alle Tag-Namen ausfüllen.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    current_user.household_split_account_id = account_id
+    current_user.household_split_tags = json.dumps({
+        "person1": person1_tag,
+        "person2": person2_tag,
+        "shared": shared_tag,
+    })
+    db.session.commit()
+    flash("Haushaltsaufteilung konfiguriert.", "success")
+    return redirect(url_for("dashboard.index"))
+
+
 def _build_personal_context() -> dict:
     """Build template context for the personal dashboard view.
 
@@ -192,6 +218,9 @@ def _build_personal_context() -> dict:
 
     # Income cycle progress bar
     income_cycle_progress = _compute_income_cycle_progress(user)
+
+    # Spending by category in current income cycle (for pie chart)
+    spending_by_category = _get_spending_by_category(user, income_cycle_progress)
 
     # Top 3 budgets by percentage used
     top_budgets = _get_top_budgets(user, BudgetScope.personal, limit=3)
@@ -264,6 +293,7 @@ def _build_personal_context() -> dict:
         "notgroschen": notgroschen,
         "schulden": schulden,
         "income_cycle_progress": income_cycle_progress,
+        "spending_by_category": spending_by_category,
         "top_budgets": top_budgets,
         "next_recurring": next_recurring,
         "unresolved_planned": unresolved_planned,
@@ -325,6 +355,37 @@ def _build_shared_context() -> dict:
     # Shared budget utilisation (top 3 shared budgets by percentage used)
     top_shared_budgets = _get_top_budgets(user, BudgetScope.shared, limit=3)
 
+    # Spending by category for shared (use shared_income_day or fallback to personal)
+    shared_income_day = user.shared_income_day or user.income_day
+    # Build a fake progress dict for shared cycle
+    from app.services.banking_day_service import BankingDayService
+    banking_service = BankingDayService()
+    today = date.today()
+    try:
+        # Compute shared cycle boundaries
+        this_month_income = banking_service.get_effective_income_day(shared_income_day, today.year, today.month)
+        if today >= this_month_income:
+            shared_last_income = this_month_income
+            if today.month == 12:
+                shared_next_income = banking_service.get_effective_income_day(shared_income_day, today.year + 1, 1)
+            else:
+                shared_next_income = banking_service.get_effective_income_day(shared_income_day, today.year, today.month + 1)
+        else:
+            shared_next_income = this_month_income
+            if today.month == 1:
+                shared_last_income = banking_service.get_effective_income_day(shared_income_day, today.year - 1, 12)
+            else:
+                shared_last_income = banking_service.get_effective_income_day(shared_income_day, today.year, today.month - 1)
+    except Exception:
+        shared_last_income = date(today.year, today.month, 1)
+        shared_next_income = date(today.year, today.month + 1, 1) if today.month < 12 else date(today.year + 1, 1, 1)
+
+    shared_cycle_progress = {
+        "last_income_date": shared_last_income,
+        "next_income_date": shared_next_income,
+    }
+    shared_spending_by_category = _get_spending_by_category_shared(shared_last_income, shared_next_income)
+
     # Net settlement balance
     net_settlement = _get_net_settlement_balance(user)
 
@@ -358,9 +419,11 @@ def _build_shared_context() -> dict:
         "notgroschen": notgroschen,
         "schulden": schulden,
         "top_shared_budgets": top_shared_budgets,
+        "spending_by_category": shared_spending_by_category,
         "net_settlement": net_settlement,
         "next_shared_recurring": next_shared_recurring,
         "last_shared_transactions": last_shared_transactions,
+        "household_split": _compute_household_split(user),
     }
 
 
@@ -519,3 +582,210 @@ def _get_net_settlement_balance(user) -> dict:
             "direction": "settled",
             "partner_name": "Partner",
         }
+
+
+def _get_spending_by_category(user, income_cycle_progress: dict) -> list[dict]:
+    """Get spending grouped by category for the current income cycle.
+
+    Returns list of dicts with 'name', 'amount', 'color'.
+    """
+    from app.models.category import Category
+
+    # Determine date range from income cycle
+    last_income = income_cycle_progress.get("last_income_date")
+    next_income = income_cycle_progress.get("next_income_date")
+
+    if not last_income or not next_income:
+        return []
+
+    # Get all personal expenses in the current cycle
+    expenses = (
+        Transaction.query
+        .filter(
+            Transaction.user_id == user.id,
+            Transaction.type == TransactionType.expense,
+            Transaction.scope == TransactionScope.personal,
+            Transaction.date >= last_income,
+            Transaction.date < next_income,
+        )
+        .all()
+    )
+
+    if not expenses:
+        return []
+
+    # Group by category
+    category_totals = {}
+    for txn in expenses:
+        cat_name = "Ohne Kategorie"
+        if txn.category_id:
+            cat = db.session.get(Category, txn.category_id)
+            if cat:
+                cat_name = cat.name
+        category_totals[cat_name] = category_totals.get(cat_name, Decimal("0.00")) + txn.amount
+
+    # Sort by amount descending
+    sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
+
+    # Assign colors (cycle through a palette)
+    colors = ["#ff8c00", "#22c55e", "#3b82f6", "#ef4444", "#a855f7", "#f59e0b", "#14b8a6", "#ec4899", "#6366f1", "#84cc16"]
+
+    result = []
+    for i, (name, amount) in enumerate(sorted_cats):
+        result.append({
+            "name": name,
+            "amount": float(amount),
+            "color": colors[i % len(colors)],
+        })
+
+    return result
+
+
+def _get_spending_by_category_shared(last_income: date, next_income: date) -> list[dict]:
+    """Get shared spending grouped by category for the current shared income cycle."""
+    from app.models.category import Category
+
+    expenses = (
+        Transaction.query
+        .filter(
+            Transaction.type == TransactionType.expense,
+            Transaction.scope == TransactionScope.shared,
+            Transaction.date >= last_income,
+            Transaction.date < next_income,
+        )
+        .all()
+    )
+
+    if not expenses:
+        return []
+
+    category_totals = {}
+    for txn in expenses:
+        cat_name = "Ohne Kategorie"
+        if txn.category_id:
+            cat = db.session.get(Category, txn.category_id)
+            if cat:
+                cat_name = cat.name
+        category_totals[cat_name] = category_totals.get(cat_name, Decimal("0.00")) + txn.amount
+
+    sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
+    colors = ["#ff8c00", "#22c55e", "#3b82f6", "#ef4444", "#a855f7", "#f59e0b", "#14b8a6", "#ec4899", "#6366f1", "#84cc16"]
+
+    result = []
+    for i, (name, amount) in enumerate(sorted_cats):
+        result.append({
+            "name": name,
+            "amount": float(amount),
+            "color": colors[i % len(colors)],
+        })
+
+    return result
+
+
+def _compute_household_split(user) -> dict:
+    """Compute the household split breakdown based on tagged recurring rules.
+
+    Uses recurring expense rules on the configured account, grouped by tags.
+    Calculates monthly equivalent for each rule.
+    Sum = personal_tag_total + 50% of shared_tag_total, rounded up to next 50€ + 50€.
+    """
+    import json
+    import math
+
+    result = {
+        "configured": False,
+        "person1": {"name": "", "items": [], "total": Decimal("0.00"), "payment": Decimal("0.00")},
+        "person2": {"name": "", "items": [], "total": Decimal("0.00"), "payment": Decimal("0.00")},
+        "shared": {"name": "", "items": [], "total": Decimal("0.00")},
+        "account_id": None,
+        "accounts": [],
+    }
+
+    # Get accounts for config dropdown
+    all_accounts = Account.query.filter_by(owner_id=user.id, active=True).all()
+    result["accounts"] = all_accounts
+
+    # Check if configured
+    if not user.household_split_tags:
+        return result
+
+    try:
+        tags_config = json.loads(user.household_split_tags)
+    except (json.JSONDecodeError, TypeError):
+        return result
+
+    person1_name = tags_config.get("person1", "")
+    person2_name = tags_config.get("person2", "")
+    shared_name = tags_config.get("shared", "")
+
+    if not person1_name or not person2_name or not shared_name:
+        return result
+
+    result["configured"] = True
+    result["person1"]["name"] = person1_name
+    result["person2"]["name"] = person2_name
+    result["shared"]["name"] = shared_name
+    result["account_id"] = user.household_split_account_id
+
+    # Get recurring rules for the configured account
+    account_id = user.household_split_account_id
+    if not account_id:
+        return result
+
+    rules = RecurringRule.query.filter(
+        RecurringRule.account_id == account_id,
+        RecurringRule.active == True,  # noqa: E712
+        RecurringRule.type == TransactionType.expense,
+    ).all()
+
+    # Helper: compute monthly equivalent
+    def monthly_equiv(rule):
+        freq = rule.frequency.value
+        interval = rule.interval
+        amount = rule.amount
+        if freq == "daily":
+            return amount * Decimal("30") / Decimal(str(interval))
+        elif freq == "weekly":
+            return amount * Decimal("4.33") / Decimal(str(interval))
+        elif freq == "monthly":
+            return amount / Decimal(str(interval))
+        elif freq == "quarterly":
+            return amount / (Decimal("3") * Decimal(str(interval)))
+        elif freq == "yearly":
+            return amount / (Decimal("12") * Decimal(str(interval)))
+        return amount
+
+    # Categorize rules by their tags
+    from app.models.transaction import Tag
+
+    for rule in rules:
+        monthly = monthly_equiv(rule).quantize(Decimal("0.01"))
+        rule_tags = [t.name for t in rule.tags] if rule.tags else []
+
+        item = {"name": rule.name, "amount": monthly}
+
+        if person1_name in rule_tags:
+            result["person1"]["items"].append(item)
+            result["person1"]["total"] += monthly
+        elif person2_name in rule_tags:
+            result["person2"]["items"].append(item)
+            result["person2"]["total"] += monthly
+        elif shared_name in rule_tags:
+            result["shared"]["items"].append(item)
+            result["shared"]["total"] += monthly
+
+    # Calculate payment: personal_total + 50% shared, round up to next 50€, add 50€
+    shared_half = result["shared"]["total"] / Decimal("2")
+
+    p1_raw = result["person1"]["total"] + shared_half
+    p2_raw = result["person2"]["total"] + shared_half
+
+    def round_up_50_plus_50(val):
+        raw = float(val)
+        rounded = math.ceil(raw / 50) * 50
+        return Decimal(str(rounded + 50))
+
+    result["person1"]["payment"] = round_up_50_plus_50(p1_raw)
+    result["person2"]["payment"] = round_up_50_plus_50(p2_raw)
+
+    return result
