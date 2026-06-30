@@ -736,3 +736,192 @@ def _prev_month(year: int, month: int) -> tuple[int, int]:
     if month == 1:
         return year - 1, 12
     return year, month - 1
+
+
+# ---------------------------------------------------------------------------
+# Sankey diagram route
+# ---------------------------------------------------------------------------
+
+
+@reports_bp.route("/sankey")
+@login_required
+def sankey():
+    """Display a Sankey diagram showing money flow for an income cycle.
+
+    Query params:
+        cycle: integer offset (0 = current, -1 = previous, etc.)
+
+    The diagram models flow as:
+        Income sources → Expense categories → Accounts
+    with special nodes for transfers and savings.
+    """
+    cycle_offset = request.args.get("cycle", 0, type=int)
+    # Clamp: cannot go into the future
+    if cycle_offset > 0:
+        cycle_offset = 0
+
+    # Compute cycle boundaries for the requested offset
+    cycle_start, cycle_end = _get_offset_cycle_boundaries(current_user, cycle_offset)
+
+    # Query personal transactions in the cycle
+    transactions = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.scope == TransactionScope.personal,
+        Transaction.date >= cycle_start,
+        Transaction.date <= cycle_end,
+    ).all()
+
+    # Build Sankey data
+    sankey_data = _build_sankey_data(transactions)
+
+    return render_template(
+        "reports/sankey.html",
+        cycle_offset=cycle_offset,
+        cycle_start=cycle_start,
+        cycle_end=cycle_end,
+        sankey_data=sankey_data,
+    )
+
+
+def _get_offset_cycle_boundaries(user: User, offset: int) -> tuple[date, date]:
+    """Compute income cycle boundaries with a month offset.
+
+    Args:
+        user: The user whose income_day anchors the cycle.
+        offset: 0 = current cycle, -1 = previous, -2 = two months ago, etc.
+
+    Returns:
+        Tuple of (cycle_start, cycle_end).
+    """
+    today = date.today()
+
+    # Walk backwards/forwards by offset months from today
+    ref_year = today.year
+    ref_month = today.month
+
+    steps = abs(offset)
+    for _ in range(steps):
+        if offset < 0:
+            ref_year, ref_month = _prev_month(ref_year, ref_month)
+        else:
+            ref_year, ref_month = _next_month(ref_year, ref_month)
+
+    # Build a reference date in the target month
+    ref_date = date(ref_year, ref_month, min(today.day, 28))
+
+    return _get_current_cycle_boundaries(user, ref_date)
+
+
+def _build_sankey_data(transactions: list[Transaction]) -> dict:
+    """Build Sankey nodes and links from a list of transactions.
+
+    Flow structure (left to right):
+        "Einkommen" → Category → Description (individual transactions)
+        "Einkommen" → "Gemeinsam" → Split categories (for transfers to shared)
+
+    Args:
+        transactions: All personal transactions in the cycle.
+
+    Returns:
+        Dict with "nodes" (list of {"name": str}) and
+        "links" (list of {"source": int, "target": int, "value": float}).
+    """
+    from app.models.category import Category as CategoryModel
+    from app.models.account import Account as AccountModel, AccountScope as AccScope
+    from app.models.transaction import TransactionSplit
+
+    # Separate by type
+    incomes = [t for t in transactions if t.type == TransactionType.income]
+    expenses = [t for t in transactions if t.type == TransactionType.expense]
+    transfers = [t for t in transactions if t.type == TransactionType.transfer]
+
+    total_income = sum(float(t.amount) for t in incomes)
+
+    if total_income == 0 and not expenses and not transfers:
+        return {"nodes": [], "links": []}
+
+    # --- Build nodes ---
+    nodes: list[dict] = []
+    node_index: dict[str, int] = {}
+
+    def _get_or_add_node(name: str) -> int:
+        if name not in node_index:
+            node_index[name] = len(nodes)
+            nodes.append({"name": name})
+        return node_index[name]
+
+    # Source node
+    income_idx = _get_or_add_node("Einkommen")
+
+    # --- Layer 1: Categories from expenses ---
+    category_descriptions: dict[str, dict[str, float]] = {}  # cat -> {desc: amount}
+
+    for t in expenses:
+        if t.category_id:
+            cat = db.session.get(CategoryModel, t.category_id)
+            cat_name = cat.name if cat else "Sonstiges"
+        else:
+            cat_name = "Sonstiges"
+
+        desc = t.description or f"Ausgabe {t.date.strftime('%d.%m')}"
+
+        if cat_name not in category_descriptions:
+            category_descriptions[cat_name] = {}
+        category_descriptions[cat_name][desc] = (
+            category_descriptions[cat_name].get(desc, 0.0) + float(t.amount)
+        )
+
+    # --- Transfers to shared accounts → use splits if available ---
+    shared_transfer_splits: dict[str, float] = {}  # split_desc -> amount
+    shared_transfer_total = 0.0
+
+    for t in transfers:
+        # Check if destination is a shared account
+        if t.destination_account_id:
+            dest = db.session.get(AccountModel, t.destination_account_id)
+            if dest and dest.scope == AccScope.shared:
+                # Check for splits
+                splits = TransactionSplit.query.filter_by(transaction_id=t.id).all()
+                if splits:
+                    for s in splits:
+                        split_cat = db.session.get(CategoryModel, s.category_id)
+                        split_name = s.description or (split_cat.name if split_cat else "Umbuchung")
+                        shared_transfer_splits[split_name] = (
+                            shared_transfer_splits.get(split_name, 0.0) + float(s.amount)
+                        )
+                        shared_transfer_total += float(s.amount)
+                else:
+                    desc = t.description or f"Umbuchung {t.date.strftime('%d.%m')}"
+                    shared_transfer_splits[desc] = (
+                        shared_transfer_splits.get(desc, 0.0) + float(t.amount)
+                    )
+                    shared_transfer_total += float(t.amount)
+
+    # --- Build links ---
+    links: list[dict] = []
+
+    # Income → Categories
+    for cat_name, desc_map in sorted(category_descriptions.items()):
+        cat_total = sum(desc_map.values())
+        cat_idx = _get_or_add_node(cat_name)
+        links.append({"source": income_idx, "target": cat_idx, "value": round(cat_total, 2)})
+
+        # Category → individual descriptions
+        for desc, amount in sorted(desc_map.items(), key=lambda x: -x[1]):
+            # Make description unique to avoid node collision with categories
+            desc_node = f"{desc} "  # trailing space makes it unique
+            desc_idx = _get_or_add_node(desc_node)
+            links.append({"source": cat_idx, "target": desc_idx, "value": round(amount, 2)})
+
+    # Income → Gemeinsam (shared transfers)
+    if shared_transfer_total > 0:
+        shared_idx = _get_or_add_node("Gemeinsam")
+        links.append({"source": income_idx, "target": shared_idx, "value": round(shared_transfer_total, 2)})
+
+        # Gemeinsam → individual split items
+        for desc, amount in sorted(shared_transfer_splits.items(), key=lambda x: -x[1]):
+            desc_node = f"{desc}  "  # double space to avoid collision
+            desc_idx = _get_or_add_node(desc_node)
+            links.append({"source": shared_idx, "target": desc_idx, "value": round(amount, 2)})
+
+    return {"nodes": nodes, "links": links}

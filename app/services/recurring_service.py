@@ -98,6 +98,9 @@ class RecurringService:
                     if rule.type == TransactionType.transfer and rule.splits:
                         self._copy_splits_to_transaction(rule, txn)
 
+                    # Apply credit repayment if this rule is linked to a credit
+                    self._apply_credit_repayment_if_linked(rule, txn, user)
+
                     # Generate posted notification (Req 5.4)
                     notifications.append(
                         RecurringNotification(
@@ -299,3 +302,35 @@ class RecurringService:
                 description=rule_split.description,
             )
             db.session.add(txn_split)
+
+    def _apply_credit_repayment_if_linked(
+        self, rule: RecurringRule, transaction: Transaction, user: User
+    ) -> None:
+        """If this recurring rule is linked to a credit via CreditRepaymentSchedule,
+        apply the repayment to the credit's remaining_balance.
+        """
+        from app.models.credit import Credit, CreditRepaymentSchedule, CreditStatus
+        from app.services.credit_service import CreditService
+
+        schedule = CreditRepaymentSchedule.query.filter_by(
+            recurring_rule_id=rule.id
+        ).first()
+
+        if schedule is None:
+            return
+
+        credit = db.session.get(Credit, schedule.credit_id)
+        if credit is None or credit.status == CreditStatus.paid_off:
+            return
+
+        # Apply repayment (needs the transaction object)
+        credit_service = CreditService()
+        try:
+            credit_service.apply_repayment(
+                credit=credit,
+                amount=transaction.amount,
+                transaction=transaction,
+            )
+        except Exception:
+            # Log but don't fail the transaction
+            pass

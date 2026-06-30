@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Sankey — Geldfluss – Haushaltsbuch{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Sankey — Geldfluss</h1>
+    <div class="d-flex gap-2 align-items-center">
+        <a href="{{ url_for('reports.sankey', cycle=cycle_offset - 1) }}"
+           class="btn btn-outline-secondary btn-sm">
+            ← Vorheriger Zyklus
+        </a>
+        <span class="text-muted small">
+            {{ cycle_start.strftime('%d.%m.%Y') }} – {{ cycle_end.strftime('%d.%m.%Y') }}
+        </span>
+        {% if cycle_offset < 0 %}
+        <a href="{{ url_for('reports.sankey', cycle=cycle_offset + 1) }}"
+           class="btn btn-outline-secondary btn-sm">
+            Nächster Zyklus →
+        </a>
+        {% else %}
+        <button class="btn btn-outline-secondary btn-sm" disabled>
+            Nächster Zyklus →
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sankey Diagram Card -->
+<div class="card">
+    <div class="card-body">
+        {% if sankey_data.nodes %}
+        <div id="sankey-chart" style="width: 100%; min-height: 600px;"></div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-diagram-3 text-muted" style="font-size: 3rem;"></i>
+            <p class="text-muted mt-3 mb-0">Keine Daten für diesen Zyklus</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if sankey_data.nodes %}
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
+    google.charts.load('current', {'packages': ['sankey']});
+    google.charts.setOnLoadCallback(drawSankey);
+
+    function drawSankey() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Von');
+        data.addColumn('string', 'Nach');
+        data.addColumn('number', 'Betrag');
+
+        var nodes = {{ sankey_data.nodes | tojson }};
+        var links = {{ sankey_data.links | tojson }};
+
+        var rows = [];
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            rows.push([
+                nodes[link.source].name,
+                nodes[link.target].name,
+                link.value
+            ]);
+        }
+        data.addRows(rows);
+
+        var colors = [
+            '#ff8c00', '#ff6b00', '#ffa500', '#ffb347',
+            '#ff7f50', '#e67300', '#cc5500', '#ff9933',
+            '#ffad60', '#f4a460'
+        ];
+
+        var options = {
+            width: '100%',
+            height: 600,
+            sankey: {
+                node: {
+                    colors: colors,
+                    label: {
+                        fontName: 'Inter',
+                        fontSize: 12,
+                        color: '#e0e0e0',
+                        bold: true
+                    },
+                    nodePadding: 30,
+                    width: 15
+                },
+                link: {
+                    color: {
+                        fill: 'rgba(255,140,0,0.25)',
+                        fillOpacity: 0.25
+                    }
+                },
+                iterations: 64
+            },
+            backgroundColor: '#1a1a1a',
+            tooltip: {
+                textStyle: {
+                    fontName: 'Inter',
+                    fontSize: 12
+                }
+            }
+        };
+
+        var chart = new google.visualization.Sankey(
+            document.getElementById('sankey-chart')
+        );
+        chart.draw(data, options);
+
+        // Redraw on resize
+        window.addEventListener('resize', function() {
+            chart.draw(data, options);
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

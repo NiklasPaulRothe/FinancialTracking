@@ -6,6 +6,10 @@
 
 {% macro freq_display(rule) %}{% if rule.interval > 1 %}{{ rule.interval }}-{% endif %}{% if rule.frequency.value == "daily" %}Täglich{% elif rule.frequency.value == "weekly" %}Wöchentlich{% elif rule.frequency.value == "monthly" %}Monatlich{% elif rule.frequency.value == "quarterly" %}Vierteljährlich{% elif rule.frequency.value == "yearly" %}Jährlich{% endif %}{% endmacro %}
 
+{% macro rule_name_cell(rule) %}
+<td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}{% if rule.credit_repayment_schedule %}<br><span class="badge bg-warning" style="font-size: 0.65rem;"><i class="bi bi-link-45deg"></i> {{ rule.credit_repayment_schedule.credit.name }}</span>{% endif %}{% if rule.tags %}<br>{% for tag in rule.tags %}<span class="badge bg-secondary me-1" style="font-size: 0.65rem;">{{ tag.name }}</span>{% endfor %}{% endif %}</td>
+{% endmacro %}
+
 <div class="page-header">
     <h1><i class="bi bi-arrow-repeat me-2"></i>Daueraufträge</h1>
     <div class="actions">
@@ -39,7 +43,7 @@
                 <tbody>
                     {% for rule in rules %}
                     <tr>
-                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}{% if rule.tags %}<br>{% for tag in rule.tags %}<span class="badge bg-secondary me-1" style="font-size: 0.65rem;">{{ tag.name }}</span>{% endfor %}{% endif %}</td>
+                        {{ rule_name_cell(rule) }}
                         <td>
                             {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
                             {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>
@@ -147,7 +151,7 @@
                     {% endfor %}
                     {% for rule in active_shared %}
                     <tr>
-                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}{% if rule.tags %}<br>{% for tag in rule.tags %}<span class="badge bg-secondary me-1" style="font-size: 0.65rem;">{{ tag.name }}</span>{% endfor %}{% endif %}</td>
+                        {{ rule_name_cell(rule) }}
                         <td>
                             {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
                             {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>
@@ -242,7 +246,7 @@
                 <tbody>
                     {% for rule in inactive_rules %}
                     <tr>
-                        <td style="color: var(--text-primary); font-weight: 500;">{{ rule.name }}{% if rule.tags %}<br>{% for tag in rule.tags %}<span class="badge bg-secondary me-1" style="font-size: 0.65rem;">{{ tag.name }}</span>{% endfor %}{% endif %}</td>
+                        {{ rule_name_cell(rule) }}
                         <td>
                             {% if rule.type.value == "income" %}<span class="badge bg-success">Einnahme</span>
                             {% elif rule.type.value == "expense" %}<span class="badge bg-danger">Ausgabe</span>

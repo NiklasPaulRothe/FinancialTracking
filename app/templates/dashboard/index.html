@@ -8,6 +8,12 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">Übersicht</h1>
     <div class="d-flex gap-2 align-items-center">
+      <form method="POST" action="{{ url_for('dashboard.run_recurring') }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-secondary btn-sm" title="Daueraufträge jetzt ausführen">
+          <i class="bi bi-arrow-repeat"></i>
+        </button>
+      </form>
       <a href="{{ url_for('transactions.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg me-1"></i>Neue Transaktion
       </a>
@@ -383,22 +389,6 @@
       </div>
     </div>
 
-    {# Net Settlement Balance #}
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">Ausgleich</h5>
-          {% if net_settlement.direction == 'settled' %}
-          <p class="text-success mb-0">Ausgeglichen</p>
-          {% elif net_settlement.direction == 'owes' %}
-          <p class="mb-0">Du schuldest <strong>{{ net_settlement.partner_name }}</strong>: <span class="text-danger">{{ "%.2f"|format(net_settlement.amount) }} €</span></p>
-          {% else %}
-          <p class="mb-0"><strong>{{ net_settlement.partner_name }}</strong> schuldet dir: <span class="text-success">{{ "%.2f"|format(net_settlement.amount) }} €</span></p>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
     {# Shared Spending by Category Pie Chart #}
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card h-100">
@@ -593,6 +583,34 @@
           {% else %}
           <p class="text-muted mb-1">Keine gemeinsamen Transaktionen vorhanden.</p>
           <a href="{{ url_for('transactions.create') }}" class="btn btn-sm btn-outline-primary">Transaktion erstellen</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Shared Saving Goals #}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Gemeinsame Sparziele</h5>
+          {% if top_shared_saving_goals %}
+          <ul class="list-unstyled mb-0">
+            {% for item in top_shared_saving_goals %}
+            <li class="mb-2">
+              <div class="d-flex justify-content-between">
+                <span style="color: var(--text-primary);">{{ item.goal.name }}</span>
+                <span style="color: var(--text-secondary);">{{ item.percentage }}%</span>
+              </div>
+              <div class="progress" style="height: 6px;" role="progressbar"
+                   aria-valuenow="{{ item.percentage }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar bg-info" style="width: {{ [item.percentage, 100]|min }}%"></div>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-1">Keine gemeinsamen Sparziele.</p>
+          <a href="{{ url_for('saving_goals.create') }}" class="btn btn-sm btn-outline-primary">Sparziel erstellen</a>
           {% endif %}
         </div>
       </div>

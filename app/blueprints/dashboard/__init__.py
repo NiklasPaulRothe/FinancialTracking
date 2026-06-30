@@ -141,6 +141,25 @@ def set_income():
     return redirect(url_for("dashboard.index"))
 
 
+@dashboard_bp.route("/run-recurring", methods=["POST"])
+@login_required
+def run_recurring():
+    """Manually trigger recurring rule processing for the current user."""
+    from app.services.recurring_service import RecurringService
+
+    service = RecurringService()
+    try:
+        generated = service.process_due_rules(current_user)
+        if generated:
+            flash(f"{len(generated)} Transaktion(en) aus Daueraufträgen gebucht.", "success")
+        else:
+            flash("Keine fälligen Daueraufträge gefunden.", "info")
+    except Exception as e:
+        flash(f"Fehler: {e}", "danger")
+
+    return redirect(url_for("dashboard.index"))
+
+
 @dashboard_bp.route("/set-household-split", methods=["POST"])
 @login_required
 def set_household_split():
@@ -424,6 +443,7 @@ def _build_shared_context() -> dict:
         "next_shared_recurring": next_shared_recurring,
         "last_shared_transactions": last_shared_transactions,
         "household_split": _compute_household_split(user),
+        "top_shared_saving_goals": _get_top_saving_goals(user, SavingGoalScope.shared, limit=5),
     }
 
 
