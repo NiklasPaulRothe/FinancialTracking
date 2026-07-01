@@ -138,6 +138,9 @@ class TransactionService:
         # Unlink planned expenses: set resolved=False on linked PlannedExpenses
         self._unlink_planned_expenses(transaction)
 
+        # Reverse credit payment if linked
+        self._reverse_credit_payment(transaction)
+
         # Audit log (Req 22.1)
         self._audit_service.log_change(
             action="delete",
@@ -458,6 +461,31 @@ class TransactionService:
                 pass
 
             db.session.delete(record)
+
+    def _reverse_credit_payment(self, transaction: Transaction) -> None:
+        """Reverse a credit payment linked to this transaction.
+
+        If this transaction has a CreditPayment record, add the interest and
+        principal portions back to the credit's accrued_interest and remaining_balance.
+        Then delete the CreditPayment record.
+        """
+        from app.models.credit import CreditPayment, Credit, CreditStatus
+
+        payment = CreditPayment.query.filter_by(transaction_id=transaction.id).first()
+        if payment is None:
+            return
+
+        credit = db.session.get(Credit, payment.credit_id)
+        if credit is not None:
+            # Reverse: add back the portions
+            credit.remaining_balance += payment.principal_portion
+            credit.accrued_interest += payment.interest_portion
+
+            # If credit was paid off, reactivate it
+            if credit.status == CreditStatus.paid_off:
+                credit.status = CreditStatus.active
+
+        db.session.delete(payment)
 
     # -------------------------------------------------------------------------
     # Shared expense auto-creation

@@ -37,11 +37,11 @@
                     {% for goal in active_goals %}
                     <tr>
                         <td class="fw-medium" style="color: var(--text-primary);">
-                            <a href="{{ url_for('saving_goals.detail', id=goal.id) }}">{{ goal.name }}</a>
+                            <a href="{{ url_for('saving_goals.detail', id=goal.id) }}" style="color: var(--text-primary); text-decoration: none; border-bottom: 1px dashed var(--border-light);">{{ goal.name }}</a>
                         </td>
-                        <td>{{ "Persönlich" if goal.scope.value == "personal" else "Gemeinsam" }}</td>
+                        <td style="color: var(--text-secondary);">{{ "Persönlich" if goal.scope.value == "personal" else "Gemeinsam" }}</td>
                         <td class="text-end fw-medium text-success">{{ "%.2f"|format(goal.total_contributions) }} €</td>
-                        <td class="text-end">
+                        <td class="text-end" style="color: var(--text-secondary);">
                             {% if goal.target_amount %}
                                 {{ "%.2f"|format(goal.target_amount) }} €
                             {% else %}
@@ -64,8 +64,11 @@
                                 —
                             {% endif %}
                         </td>
-                        <td>{{ goal.contributions | length }}</td>
+                        <td style="color: var(--text-secondary);">{{ goal.contributions | length }}</td>
                         <td class="text-end">
+                            <a href="{{ url_for('saving_goals.detail', id=goal.id) }}" class="btn btn-secondary btn-sm me-1" title="Beitrag hinzufügen">
+                                <i class="bi bi-plus-lg"></i>
+                            </a>
                             <form method="POST" action="{{ url_for('saving_goals.complete', id=goal.id) }}" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-primary btn-sm me-1" title="Abschließen">
@@ -115,7 +118,7 @@
                     {% for goal in completed_goals %}
                     <tr>
                         <td class="fw-medium" style="color: var(--text-primary);">
-                            <a href="{{ url_for('saving_goals.detail', id=goal.id) }}">{{ goal.name }}</a>
+                            <a href="{{ url_for('saving_goals.detail', id=goal.id) }}" style="color: var(--text-primary); text-decoration: none;">{{ goal.name }}</a>
                         </td>
                         <td class="text-end text-success">{{ "%.2f"|format(goal.total_contributions) }} €</td>
                         <td><span class="badge bg-success">Abgeschlossen</span></td>
@@ -149,9 +152,9 @@
                     {% for goal in cancelled_goals %}
                     <tr>
                         <td class="fw-medium" style="color: var(--text-primary);">
-                            <a href="{{ url_for('saving_goals.detail', id=goal.id) }}">{{ goal.name }}</a>
+                            <a href="{{ url_for('saving_goals.detail', id=goal.id) }}" style="color: var(--text-primary); text-decoration: none;">{{ goal.name }}</a>
                         </td>
-                        <td class="text-end">{{ "%.2f"|format(goal.total_contributions) }} €</td>
+                        <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(goal.total_contributions) }} €</td>
                         <td><span class="badge bg-danger">Abgebrochen</span></td>
                     </tr>
                     {% endfor %}

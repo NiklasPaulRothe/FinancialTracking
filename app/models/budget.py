@@ -151,6 +151,20 @@ class SavingGoal(db.Model):
     def __repr__(self) -> str:
         return f"<SavingGoal {self.name!r} ({self.status.value})>"
 
+    @property
+    def total_contributions(self):
+        """Sum of all contribution amounts for this goal."""
+        from decimal import Decimal
+        return sum((c.amount for c in self.contributions), Decimal("0.00"))
+
+    @property
+    def progress_percent(self):
+        """Progress as percentage (0-100). Returns None if no target."""
+        if not self.target_amount or self.target_amount <= 0:
+            return None
+        pct = float(self.total_contributions / self.target_amount * 100)
+        return min(100, round(pct, 1))
+
 
 class SavingContribution(db.Model):
     """A contribution to a saving goal from a specific account.

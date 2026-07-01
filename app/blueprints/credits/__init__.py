@@ -124,10 +124,30 @@ def repay(id):
 
     if form.validate_on_submit():
         try:
+            # Create a transaction for the manual repayment
+            from app.services.transaction_service import TransactionService
+            from app.models.transaction import TransactionScope, TransactionType
+            from datetime import date
+
+            txn_service = TransactionService()
+            txn = txn_service.create_transaction(
+                data={
+                    "type": TransactionType.expense,
+                    "amount": form.amount.data,
+                    "date": date.today(),
+                    "account_id": credit.account_id,
+                    "scope": TransactionScope(credit.scope.value),
+                    "description": f"Kreditrückzahlung: {credit.name}",
+                },
+                user=current_user,
+            )
+
+            # Accrue interest then apply repayment
+            _service.accrue_interest_to_date(credit)
             _service.apply_repayment(
                 credit=credit,
                 amount=form.amount.data,
-                user_id=current_user.id,
+                transaction=txn,
             )
             flash("Rückzahlung erfolgreich gebucht.", "success")
             return redirect(url_for("credits.detail", id=id))
@@ -135,6 +155,34 @@ def repay(id):
             flash(str(e), "danger")
 
     return render_template("credits/repay.html", credit=credit, form=form)
+
+
+@credits_bp.route("/correct-balance/<int:id>", methods=["POST"])
+@login_required
+def correct_balance(id):
+    """Manually correct the remaining balance and accrued interest of a credit."""
+    from decimal import Decimal
+
+    credit = _service.get_by_id(id)
+    if credit is None or credit.user_id != current_user.id:
+        flash("Kredit nicht gefunden.", "danger")
+        return redirect(url_for("credits.index"))
+
+    new_balance = request.form.get("new_balance", type=float)
+    new_interest = request.form.get("new_interest", type=float)
+
+    if new_balance is not None:
+        credit.remaining_balance = Decimal(str(new_balance))
+    if new_interest is not None:
+        credit.accrued_interest = Decimal(str(new_interest))
+
+    db.session.commit()
+
+    # Recalculate forecast
+    _service.generate_forecast(credit)
+
+    flash("Kreditbetrag korrigiert.", "success")
+    return redirect(url_for("credits.detail", id=id))
 
 
 @credits_bp.route("/edit/<int:id>", methods=["GET", "POST"])

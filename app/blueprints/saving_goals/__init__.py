@@ -45,12 +45,14 @@ def index():
     active_goals = [g for g in goals if g.status == SavingGoalStatus.active]
     completed_goals = [g for g in goals if g.status == SavingGoalStatus.completed]
     cancelled_goals = [g for g in goals if g.status == SavingGoalStatus.cancelled]
+    accounts = _get_user_accounts()
 
     return render_template(
         "saving_goals/index.html",
         active_goals=active_goals,
         completed_goals=completed_goals,
         cancelled_goals=cancelled_goals,
+        accounts=accounts,
     )
 
 

@@ -108,8 +108,9 @@ def daily_job(app: Flask) -> None:
             # Task 3: Net worth snapshot (Req 26.3)
             _run_task("networth_snapshot", _task_networth_snapshot)
 
-            # Task 4: Credit interest capitalization (Req 26.3)
-            _run_task("credit_interest_capitalization", _task_credit_interest_capitalization)
+            # Task 4: Credit interest capitalization — DISABLED
+            # Interest is now calculated on-demand before each repayment
+            # _run_task("credit_interest_capitalization", _task_credit_interest_capitalization)
 
             logger.info("Daily scheduler job completed.")
         finally:

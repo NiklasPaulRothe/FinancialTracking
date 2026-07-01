@@ -141,6 +141,56 @@ class CreditService:
         db.session.commit()
         return credit
 
+    def accrue_interest_to_date(self, credit: Credit) -> Decimal:
+        """Accrue interest from the last payment date up to today.
+
+        Calculates: daily_interest = remaining_balance * rate / 365
+        Multiplied by the number of days since the last CreditPayment
+        (or disbursement_date if no payments exist).
+
+        This replaces the daily scheduler-based accrual with a point-in-time
+        calculation done right before a repayment is applied.
+        """
+        from datetime import date as date_type
+
+        if credit.status == CreditStatus.paid_off:
+            return Decimal("0.000000")
+        if credit.remaining_balance <= 0 or credit.effective_yearly_rate <= 0:
+            return Decimal("0.000000")
+
+        today = date_type.today()
+
+        # Find the last payment date, or fall back to disbursement date
+        last_payment = (
+            CreditPayment.query
+            .filter_by(credit_id=credit.id)
+            .join(Transaction, CreditPayment.transaction_id == Transaction.id)
+            .order_by(Transaction.date.desc())
+            .first()
+        )
+
+        if last_payment:
+            last_date = last_payment.transaction.date
+        else:
+            last_date = credit.disbursement_date
+
+        # Days since last payment
+        days = (today - last_date).days
+        if days <= 0:
+            return Decimal("0.000000")
+
+        # Simple nominal interest: balance * rate / 365 * days
+        interest = (
+            credit.remaining_balance * credit.effective_yearly_rate
+            * Decimal(str(days)) / Decimal("365")
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        # Add to accrued interest
+        credit.accrued_interest += interest
+        db.session.flush()
+
+        return interest
+
     def accrue_daily_interest(self, credit: Credit) -> Decimal:
         """Calculate and add one day's interest to accrued_interest.
 
@@ -392,9 +442,11 @@ class CreditService:
 
         Validates: Requirement 11.7
 
-        Generates projections from today through projected payoff date,
-        capped at 360 months. Assumes current rate and estimates monthly
-        payment from recent payment history.
+        For each month: 
+        1. Calculate interest for that month: balance * rate / 12
+        2. Record projected_balance and projected_interest (monthly interest)
+        3. Apply payment: interest portion first, remainder to principal
+        4. New balance = old balance - principal_paid + 0 (interest not capitalized)
 
         Args:
             credit: The credit to generate forecast for.
@@ -405,47 +457,38 @@ class CreditService:
         # Clear existing forecast cache
         CreditForecastCache.query.filter_by(credit_id=credit.id).delete()
 
-        # Estimate monthly payment from payment history
+        # Estimate monthly payment
         monthly_payment = self._estimate_monthly_payment(credit)
         if monthly_payment <= 0:
-            # If no payment history, generate minimal forecast showing current state
             now = datetime.now(timezone.utc)
             entry = CreditForecastCache(
                 credit_id=credit.id,
                 month_offset=0,
                 projected_balance=credit.remaining_balance,
-                projected_interest=credit.accrued_interest.quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                ),
+                projected_interest=Decimal("0.00"),
                 recalculated_at=now,
             )
             db.session.add(entry)
             db.session.commit()
             return
 
-        # Calculate daily rate for projections
-        one = Decimal("1")
-        exponent = one / Decimal("365")
-        base = one + credit.effective_yearly_rate
-        daily_rate = base ** exponent - one
-
-        # Project monthly balances
         balance = credit.remaining_balance
-        accrued = credit.accrued_interest
+        rate = credit.effective_yearly_rate
         now = datetime.now(timezone.utc)
         max_months = 360
 
         for month_offset in range(max_months + 1):
-            # Record current state
+            # Monthly interest on current balance: balance * rate / 12
+            monthly_interest = (balance * rate / Decimal("12")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+            # Record this month's state
             entry = CreditForecastCache(
                 credit_id=credit.id,
                 month_offset=month_offset,
-                projected_balance=balance.quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                ),
-                projected_interest=accrued.quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                ),
+                projected_balance=balance.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+                projected_interest=monthly_interest,
                 recalculated_at=now,
             )
             db.session.add(entry)
@@ -453,25 +496,16 @@ class CreditService:
             if balance <= 0:
                 break
 
-            # Simulate one month (approximately 30 days of interest accrual)
-            for _ in range(30):
-                daily_interest = balance * daily_rate
-                accrued = accrued + daily_interest
-
-            # Simulate capitalization once per month
-            capitalized = accrued.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            balance = balance + capitalized
-            accrued = Decimal("0.000000")
-
-            # Simulate monthly payment (interest first, then principal)
-            interest_paid = min(monthly_payment, capitalized)
+            # Apply payment: interest first, remainder reduces principal
+            interest_paid = min(monthly_payment, monthly_interest)
             remainder = monthly_payment - interest_paid
             principal_paid = min(remainder, balance)
+
+            # New balance for next month
             balance = balance - principal_paid
 
             if balance <= 0:
                 balance = Decimal("0.00")
-                # Add final entry showing paid off
                 final_entry = CreditForecastCache(
                     credit_id=credit.id,
                     month_offset=month_offset + 1,

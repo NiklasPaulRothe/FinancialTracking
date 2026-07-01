@@ -326,6 +326,9 @@ class RecurringService:
         # Apply repayment (needs the transaction object)
         credit_service = CreditService()
         try:
+            # Calculate interest accrued since last payment/capitalization before applying repayment
+            credit_service.accrue_interest_to_date(credit)
+
             credit_service.apply_repayment(
                 credit=credit,
                 amount=transaction.amount,

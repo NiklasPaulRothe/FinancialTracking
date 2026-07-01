@@ -755,7 +755,7 @@ def _compute_household_split(user) -> dict:
     rules = RecurringRule.query.filter(
         RecurringRule.account_id == account_id,
         RecurringRule.active == True,  # noqa: E712
-        RecurringRule.type == TransactionType.expense,
+        RecurringRule.type.in_([TransactionType.expense, TransactionType.transfer]),
     ).all()
 
     # Helper: compute monthly equivalent
@@ -802,7 +802,7 @@ def _compute_household_split(user) -> dict:
 
     def round_up_50_plus_50(val):
         raw = float(val)
-        rounded = math.ceil(raw / 50) * 50
+        rounded = math.ceil(raw / 10) * 10
         return Decimal(str(rounded + 50))
 
     result["person1"]["payment"] = round_up_50_plus_50(p1_raw)
