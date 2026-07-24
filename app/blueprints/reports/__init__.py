@@ -816,8 +816,9 @@ def _build_sankey_data(transactions: list[Transaction]) -> dict:
     """Build Sankey nodes and links from a list of transactions.
 
     Flow structure (left to right):
-        "Einkommen" → Category → Description (individual transactions)
-        "Einkommen" → "Gemeinsam" → Split categories (for transfers to shared)
+        Income Sources → "Einkommen" → Categories → Descriptions
+        Income Sources → "Einkommen" → "Gemeinsam" → Split items
+        If spending > income: "Überschuss" node feeds into the deficit
 
     Args:
         transactions: All personal transactions in the cycle.
@@ -836,51 +837,16 @@ def _build_sankey_data(transactions: list[Transaction]) -> dict:
     transfers = [t for t in transactions if t.type == TransactionType.transfer]
 
     total_income = sum(float(t.amount) for t in incomes)
+    total_expenses = sum(float(t.amount) for t in expenses)
 
-    if total_income == 0 and not expenses and not transfers:
-        return {"nodes": [], "links": []}
-
-    # --- Build nodes ---
-    nodes: list[dict] = []
-    node_index: dict[str, int] = {}
-
-    def _get_or_add_node(name: str) -> int:
-        if name not in node_index:
-            node_index[name] = len(nodes)
-            nodes.append({"name": name})
-        return node_index[name]
-
-    # Source node
-    income_idx = _get_or_add_node("Einkommen")
-
-    # --- Layer 1: Categories from expenses ---
-    category_descriptions: dict[str, dict[str, float]] = {}  # cat -> {desc: amount}
-
-    for t in expenses:
-        if t.category_id:
-            cat = db.session.get(CategoryModel, t.category_id)
-            cat_name = cat.name if cat else "Sonstiges"
-        else:
-            cat_name = "Sonstiges"
-
-        desc = t.description or f"Ausgabe {t.date.strftime('%d.%m')}"
-
-        if cat_name not in category_descriptions:
-            category_descriptions[cat_name] = {}
-        category_descriptions[cat_name][desc] = (
-            category_descriptions[cat_name].get(desc, 0.0) + float(t.amount)
-        )
-
-    # --- Transfers to shared accounts → use splits if available ---
-    shared_transfer_splits: dict[str, float] = {}  # split_desc -> amount
+    # Calculate shared transfers total
     shared_transfer_total = 0.0
+    shared_transfer_splits: dict[str, float] = {}
 
     for t in transfers:
-        # Check if destination is a shared account
         if t.destination_account_id:
             dest = db.session.get(AccountModel, t.destination_account_id)
             if dest and dest.scope == AccScope.shared:
-                # Check for splits
                 splits = TransactionSplit.query.filter_by(transaction_id=t.id).all()
                 if splits:
                     for s in splits:
@@ -897,31 +863,86 @@ def _build_sankey_data(transactions: list[Transaction]) -> dict:
                     )
                     shared_transfer_total += float(t.amount)
 
-    # --- Build links ---
+    total_outflow = total_expenses + shared_transfer_total
+
+    if total_income == 0 and total_outflow == 0:
+        return {"nodes": [], "links": []}
+
+    # --- Build nodes and links ---
+    nodes: list[dict] = []
+    node_index: dict[str, int] = {}
     links: list[dict] = []
 
-    # Income → Categories
+    def _get_or_add_node(name: str) -> int:
+        if name not in node_index:
+            node_index[name] = len(nodes)
+            nodes.append({"name": name})
+        return node_index[name]
+
+    # Central income node
+    income_idx = _get_or_add_node("Einkommen")
+
+    # --- Stage 1: Income sources → Einkommen ---
+    income_sources: dict[str, float] = {}
+    for t in incomes:
+        source_name = t.description or "Einkommen"
+        income_sources[source_name] = income_sources.get(source_name, 0.0) + float(t.amount)
+
+    for source_name, amount in sorted(income_sources.items(), key=lambda x: -x[1]):
+        source_node = f"  {source_name}"  # leading spaces to differentiate from category nodes
+        source_idx = _get_or_add_node(source_node)
+        links.append({"source": source_idx, "target": income_idx, "value": round(amount, 2)})
+
+    # --- Overspending: added later (at end) so it renders at the bottom ---
+    overspend_amount = 0.0
+    if total_outflow > total_income and total_income > 0:
+        overspend_amount = total_outflow - total_income
+
+    # The income node value represents the total outflow (either funded by income or overspending)
+    # This ensures all flows balance
+
+    # --- Stage 2: Einkommen → Categories ---
+    category_descriptions: dict[str, dict[str, float]] = {}
+
+    for t in expenses:
+        if t.category_id:
+            cat = db.session.get(CategoryModel, t.category_id)
+            cat_name = cat.name if cat else "Sonstiges"
+        else:
+            cat_name = "Sonstiges"
+
+        desc = t.description or f"Ausgabe {t.date.strftime('%d.%m')}"
+        if cat_name not in category_descriptions:
+            category_descriptions[cat_name] = {}
+        category_descriptions[cat_name][desc] = (
+            category_descriptions[cat_name].get(desc, 0.0) + float(t.amount)
+        )
+
     for cat_name, desc_map in sorted(category_descriptions.items()):
         cat_total = sum(desc_map.values())
         cat_idx = _get_or_add_node(cat_name)
         links.append({"source": income_idx, "target": cat_idx, "value": round(cat_total, 2)})
 
-        # Category → individual descriptions
-        for desc, amount in sorted(desc_map.items(), key=lambda x: -x[1]):
-            # Make description unique to avoid node collision with categories
-            desc_node = f"{desc} "  # trailing space makes it unique
-            desc_idx = _get_or_add_node(desc_node)
-            links.append({"source": cat_idx, "target": desc_idx, "value": round(amount, 2)})
-
-    # Income → Gemeinsam (shared transfers)
+    # --- Stage 2b: Einkommen → Gemeinsam ---
     if shared_transfer_total > 0:
         shared_idx = _get_or_add_node("Gemeinsam")
         links.append({"source": income_idx, "target": shared_idx, "value": round(shared_transfer_total, 2)})
 
-        # Gemeinsam → individual split items
         for desc, amount in sorted(shared_transfer_splits.items(), key=lambda x: -x[1]):
-            desc_node = f"{desc}  "  # double space to avoid collision
+            desc_node = f"{desc}  "  # double space for uniqueness
             desc_idx = _get_or_add_node(desc_node)
             links.append({"source": shared_idx, "target": desc_idx, "value": round(amount, 2)})
+
+    # --- If income > outflow, show remainder as "Gespart" ---
+    if total_income > total_outflow:
+        remainder = total_income - total_outflow
+        if remainder > 0.01:
+            saved_idx = _get_or_add_node("Gespart")
+            links.append({"source": income_idx, "target": saved_idx, "value": round(remainder, 2)})
+
+    # --- Overspending at the bottom (added last for positioning) ---
+    if overspend_amount > 0:
+        overspend_idx = _get_or_add_node("Überziehung")
+        links.append({"source": overspend_idx, "target": income_idx, "value": round(overspend_amount, 2)})
 
     return {"nodes": nodes, "links": links}

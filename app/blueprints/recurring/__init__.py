@@ -36,6 +36,12 @@ def _get_user_categories():
     return Category.query.filter_by(user_id=current_user.id).all()
 
 
+def _get_user_saving_goals():
+    """Get active saving goals for the current user."""
+    from app.models.budget import SavingGoal, SavingGoalStatus
+    return SavingGoal.query.filter_by(user_id=current_user.id, status=SavingGoalStatus.active).all()
+
+
 def _apply_rule_tags(rule, tags_string, user_id):
     """Parse comma-separated tag names and link them to a recurring rule."""
     tag_names = [t.strip() for t in tags_string.split(",") if t.strip()]
@@ -128,7 +134,7 @@ def create():
     """
     accounts = _get_user_accounts()
     categories = _get_user_categories()
-    form = RecurringRuleCreateForm(accounts=accounts, categories=categories)
+    form = RecurringRuleCreateForm(accounts=accounts, categories=categories, saving_goals=_get_user_saving_goals())
 
     if form.validate_on_submit():
         rule = RecurringRule(
@@ -143,6 +149,7 @@ def create():
             account_id=form.account_id.data,
             destination_account_id=form.destination_account_id.data,
             category_id=form.category_id.data,
+            saving_goal_id=form.saving_goal_id.data if form.saving_goal_id.data else None,
             user_id=current_user.id,
         )
         db.session.add(rule)
@@ -173,10 +180,13 @@ def edit(id):
     accounts = _get_user_accounts()
     categories = _get_user_categories()
 
+    saving_goals = _get_user_saving_goals()
+
     if request.method == "GET":
         form = RecurringRuleEditForm(
             accounts=accounts,
             categories=categories,
+            saving_goals=saving_goals,
             data={
                 "name": rule.name,
                 "type": rule.type.value,
@@ -188,11 +198,12 @@ def edit(id):
                 "destination_account_id": rule.destination_account_id or 0,
                 "scope": rule.scope.value,
                 "category_id": rule.category_id or 0,
+                "saving_goal_id": rule.saving_goal_id or 0,
                 "tags": ", ".join(t.name for t in rule.tags) if rule.tags else "",
             },
         )
     else:
-        form = RecurringRuleEditForm(accounts=accounts, categories=categories)
+        form = RecurringRuleEditForm(accounts=accounts, categories=categories, saving_goals=saving_goals)
 
     if form.validate_on_submit():
         rule.name = form.name.data
@@ -205,6 +216,7 @@ def edit(id):
         rule.account_id = form.account_id.data
         rule.destination_account_id = form.destination_account_id.data
         rule.category_id = form.category_id.data
+        rule.saving_goal_id = form.saving_goal_id.data if form.saving_goal_id.data else None
 
         _apply_rule_tags(rule, form.tags.data or "", current_user.id)
 

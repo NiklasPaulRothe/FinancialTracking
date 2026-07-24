@@ -118,13 +118,18 @@ class RecurringRuleCreateForm(FlaskForm):
         coerce=int,
         validators=[Optional()],
     )
+    saving_goal_id = SelectField(
+        "Sparziel (optional)",
+        coerce=int,
+        validators=[Optional()],
+    )
     tags = StringField(
         "Tags (kommagetrennt)",
         validators=[Length(max=255)],
     )
     submit = SubmitField("Dauerauftrag erstellen")
 
-    def __init__(self, *args, accounts=None, categories=None, **kwargs):
+    def __init__(self, *args, accounts=None, categories=None, saving_goals=None, **kwargs):
         """Initialize form with dynamic account and category choices.
 
         Args:
@@ -145,6 +150,11 @@ class RecurringRuleCreateForm(FlaskForm):
         if categories:
             category_choices += [(c.id, c.name) for c in categories]
         self.category_id.choices = category_choices
+
+        saving_goal_choices = [(0, "— Kein Sparziel —")]
+        if saving_goals:
+            saving_goal_choices += [(g.id, g.name) for g in saving_goals]
+        self.saving_goal_id.choices = saving_goal_choices
 
     def validate(self, extra_validators=None):
         """Custom validation for recurring rule fields."""
@@ -259,19 +269,19 @@ class RecurringRuleEditForm(FlaskForm):
         coerce=int,
         validators=[Optional()],
     )
+    saving_goal_id = SelectField(
+        "Sparziel (optional)",
+        coerce=int,
+        validators=[Optional()],
+    )
     tags = StringField(
         "Tags (kommagetrennt)",
         validators=[Length(max=255)],
     )
     submit = SubmitField("Speichern")
 
-    def __init__(self, *args, accounts=None, categories=None, **kwargs):
-        """Initialize form with dynamic account and category choices.
-
-        Args:
-            accounts: List of Account objects for dropdowns.
-            categories: List of Category objects for dropdown.
-        """
+    def __init__(self, *args, accounts=None, categories=None, saving_goals=None, **kwargs):
+        """Initialize form with dynamic account and category choices."""
         super().__init__(*args, **kwargs)
 
         account_choices = [(0, "— Konto wählen —")]
@@ -286,6 +296,11 @@ class RecurringRuleEditForm(FlaskForm):
         if categories:
             category_choices += [(c.id, c.name) for c in categories]
         self.category_id.choices = category_choices
+
+        saving_goal_choices = [(0, "— Kein Sparziel —")]
+        if saving_goals:
+            saving_goal_choices += [(g.id, g.name) for g in saving_goals]
+        self.saving_goal_id.choices = saving_goal_choices
 
     def validate(self, extra_validators=None):
         """Custom validation for recurring rule fields."""

@@ -56,6 +56,9 @@ class Credit(db.Model):
     converted_from_credit_card_payment = db.Column(
         db.Boolean, nullable=False, default=False
     )
+    fixed_interest_amount = db.Column(
+        db.Numeric(12, 2), nullable=True
+    )
     linked_transaction_id = db.Column(
         db.Integer, db.ForeignKey("transactions.id"), nullable=True
     )
@@ -94,6 +97,18 @@ class Credit(db.Model):
 
     def __repr__(self) -> str:
         return f"<Credit {self.name!r} ({self.status.value})>"
+
+    @property
+    def uses_fixed_interest(self) -> bool:
+        """Return True if this credit uses a fixed interest amount instead of a rate."""
+        return self.fixed_interest_amount is not None
+
+    @property
+    def total_owed(self) -> Decimal:
+        """Total amount owed: remaining_balance + interest (fixed or accrued)."""
+        if self.uses_fixed_interest:
+            return self.remaining_balance + self.fixed_interest_amount
+        return self.remaining_balance + self.accrued_interest
 
 
 class CreditPayment(db.Model):

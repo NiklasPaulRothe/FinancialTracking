@@ -42,7 +42,12 @@
                             </a>
                         </td>
                         <td style="color: var(--text-secondary);">{{ "Persönlich" if credit.scope.value == "personal" else "Gemeinsam" }}</td>
-                        <td class="text-end fw-medium text-danger">{{ "%.2f"|format(credit.remaining_balance) }} €</td>
+                        <td class="text-end fw-medium text-danger">
+                            {{ "%.2f"|format(credit.remaining_balance) }} €
+                            {% if credit.fixed_interest_amount %}
+                            <br><small class="text-muted">+ {{ "%.2f"|format(credit.fixed_interest_amount) }} € Zinsen</small>
+                            {% endif %}
+                        </td>
                         <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(credit.accrued_interest) }} €</td>
                         <td class="text-end" style="color: var(--text-secondary);">{{ "%.2f"|format(credit.effective_yearly_rate * 100) }}%</td>
                         <td style="color: var(--text-secondary);">

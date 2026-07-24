@@ -29,6 +29,14 @@
             </div>
             <div class="col-md-3">
                 <div class="mb-3">
+                    <span class="section-title d-block">Verfügbar</span>
+                    <span class="fs-4 fw-bold {{ 'text-success' if available_balance >= 0 else 'text-danger' }}">
+                        {{ "%.2f"|format(available_balance) }} €
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
                     <span class="section-title d-block">Typ</span>
                     <span style="color: var(--text-secondary);">
                         {% if account.type.value == "spending" %}Girokonto
@@ -38,7 +46,7 @@
                     </span>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="mb-3">
                     <span class="section-title d-block">Zuordnung</span>
                     <span style="color: var(--text-secondary);">
@@ -46,7 +54,7 @@
                     </span>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="mb-3">
                     <span class="section-title d-block">Institut</span>
                     <span style="color: var(--text-secondary);">{{ account.institute or "—" }}</span>

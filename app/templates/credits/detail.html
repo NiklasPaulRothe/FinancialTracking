@@ -27,6 +27,9 @@
             <div class="col-md-3 mb-3">
                 <span class="section-title d-block">Restschuld</span>
                 <span class="fs-4 fw-bold text-danger">{{ "%.2f"|format(credit.remaining_balance) }} €</span>
+                {% if credit.fixed_interest_amount %}
+                <br><small class="text-muted">+ {{ "%.2f"|format(credit.fixed_interest_amount) }} € Zinsen</small>
+                {% endif %}
                 <button class="btn btn-secondary btn-sm mt-1" data-bs-toggle="collapse" data-bs-target="#correctBalance" style="font-size: 0.7rem;">
                     <i class="bi bi-pencil"></i> Korrigieren
                 </button>

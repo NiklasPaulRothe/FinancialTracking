@@ -80,6 +80,15 @@
                         </div>
                     </div>
 
+                    <div class="mb-4">
+                        {{ form.fixed_interest_amount.label(class="form-label") }}
+                        {{ form.fixed_interest_amount(class="form-control", placeholder="Leer lassen für zinsbasierte Berechnung") }}
+                        <small class="text-muted">Wenn gesetzt, wird dieser feste Betrag als Gesamtzins verwendet statt einer laufenden Zinsberechnung.</small>
+                        {% for error in form.fixed_interest_amount.errors %}
+                            <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary btn-lg") }}
                     </div>

@@ -99,6 +99,9 @@ def daily_job(app: Flask) -> None:
         try:
             logger.info("Daily scheduler job started.")
 
+            # Task 0: Apply balance impacts for future transactions that are now due
+            _run_task("post_future_transactions", _task_post_future_transactions)
+
             # Task 1: Recurring rule catch-up (Req 26.3)
             _run_task("recurring_rule_catchup", _task_recurring_rule_catchup)
 
@@ -470,3 +473,80 @@ def _task_vl_contribution_logs() -> None:
         for notif in notifications:
             if notif.notification_type == "vl_price_stale":
                 logger.warning("VL notification: %s", notif.message)
+
+
+def _task_post_future_transactions() -> None:
+    """Apply balance impacts for future-dated transactions that are now due.
+
+    Transactions with a date in the future don't affect account balances when
+    created — they only block available_balance. Once their date arrives
+    (date <= today), this task applies the actual balance impact.
+
+    This ensures the account balance reflects reality once the transaction
+    date is reached.
+    """
+    from app.models.transaction import Transaction, TransactionType
+    from app.models.account import Account
+    from sqlalchemy import select
+
+    today = date.today()
+
+    # Find transactions dated today or earlier that haven't impacted balance yet.
+    # We identify these as transactions with date <= today that were created with
+    # a future date. We use a marker: posted=True and date <= today but we need
+    # to distinguish "already applied" vs "not yet applied".
+    #
+    # Strategy: use a new column or check snapshots. Simpler approach: check if
+    # there's a balance snapshot for this transaction. If not, it hasn't been applied.
+    # But that's expensive. Instead, we'll apply balance for ALL transactions dated
+    # today that don't have a snapshot yet.
+    #
+    # Simplest reliable approach: find transactions where date == today (exactly today,
+    # since past dates would have been applied when the scheduler ran on that day).
+    # On the day the transaction's date arrives, we apply the impact.
+
+    from app.models.account import AccountBalanceSnapshot
+    from app.services.transaction_service import TransactionService
+
+    service = TransactionService()
+
+    # Find transactions dated today that don't have an associated balance snapshot
+    # (indicating they were created as future transactions and haven't been posted yet)
+    transactions = Transaction.query.filter(
+        Transaction.date == today,
+        Transaction.posted == True,  # noqa: E712
+    ).all()
+
+    applied_count = 0
+    for txn in transactions:
+        # Check if a balance snapshot already exists for this transaction's
+        # account on this date with a created_at close to the transaction's created_at.
+        # Simpler check: if a snapshot exists for this account on this date AFTER
+        # the transaction was created, it was already applied.
+        has_snapshot = AccountBalanceSnapshot.query.filter(
+            AccountBalanceSnapshot.account_id == txn.account_id,
+            AccountBalanceSnapshot.snapshot_date == today,
+            AccountBalanceSnapshot.created_at >= txn.created_at,
+        ).first()
+
+        if has_snapshot:
+            continue  # Already applied
+
+        # Apply balance impact
+        try:
+            service._apply_balance_impacts(txn)
+            service._create_balance_snapshots_for_transaction(txn)
+            applied_count += 1
+        except Exception:
+            logger.exception(
+                "Failed to post future transaction %d.", txn.id
+            )
+            db.session.rollback()
+            continue
+
+    if applied_count > 0:
+        db.session.commit()
+        logger.info(
+            "Posted %d future transactions that reached their date today.",
+            applied_count,
+        )

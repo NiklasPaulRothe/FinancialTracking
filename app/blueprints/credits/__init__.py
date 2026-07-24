@@ -62,7 +62,7 @@ def create():
 
     if form.validate_on_submit():
         try:
-            _service.create(
+            credit = _service.create(
                 name=form.name.data,
                 principal=form.principal.data,
                 effective_yearly_rate=form.effective_yearly_rate.data,
@@ -72,6 +72,10 @@ def create():
                 scope=CreditScope(form.scope.data),
                 user_id=current_user.id,
             )
+            # Set fixed interest amount if provided
+            if form.fixed_interest_amount.data and form.fixed_interest_amount.data > 0:
+                credit.fixed_interest_amount = form.fixed_interest_amount.data
+                db.session.commit()
             flash("Kredit erfolgreich erstellt.", "success")
             return redirect(url_for("credits.index"))
         except ValueError as e:
@@ -211,6 +215,11 @@ def edit(id):
         credit.interest_capitalization_day = form.interest_capitalization_day.data
         credit.account_id = form.account_id.data
         credit.scope = CreditScope(form.scope.data)
+        # Fixed interest: set to None if empty/zero to switch back to rate-based
+        if form.fixed_interest_amount.data and form.fixed_interest_amount.data > 0:
+            credit.fixed_interest_amount = form.fixed_interest_amount.data
+        else:
+            credit.fixed_interest_amount = None
         db.session.commit()
         flash("Kredit erfolgreich aktualisiert.", "success")
         return redirect(url_for("credits.detail", id=id))

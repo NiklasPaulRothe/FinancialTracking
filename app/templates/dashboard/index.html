@@ -279,7 +279,12 @@
             <li class="list-group-item px-0">
               <div class="d-flex justify-content-between">
                 <span>{{ credit.name }}</span>
-                <span class="text-danger">{{ "%.2f"|format(credit.remaining_balance) }} €</span>
+                <span class="text-danger">
+                  {{ "%.2f"|format(credit.remaining_balance) }} €
+                  {% if credit.fixed_interest_amount %}
+                  <small class="text-muted">+ {{ "%.2f"|format(credit.fixed_interest_amount) }} €</small>
+                  {% endif %}
+                </span>
               </div>
             </li>
             {% endfor %}

@@ -87,17 +87,24 @@
                     </div>
 
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             {{ form.scope.label(class="form-label") }}
                             {{ form.scope(class="form-select") }}
                             {% for error in form.scope.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             {{ form.category_id.label(class="form-label") }}
                             {{ form.category_id(class="form-select") }}
                             {% for error in form.category_id.errors %}
+                                <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.saving_goal_id.label(class="form-label") }}
+                            {{ form.saving_goal_id(class="form-select") }}
+                            {% for error in form.saving_goal_id.errors %}
                                 <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ error }}</div>
                             {% endfor %}
                         </div>

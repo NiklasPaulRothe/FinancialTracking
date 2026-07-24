@@ -87,11 +87,13 @@ class TransactionService:
         # Auto-assign due_date for credit card transactions without statement cycle
         self._assign_due_date(transaction)
 
-        # Apply balance impacts
-        self._apply_balance_impacts(transaction)
+        # Apply balance impacts only for past/today transactions
+        # Future transactions block available_balance instead
+        if not self._is_future_transaction(transaction.date):
+            self._apply_balance_impacts(transaction)
 
-        # Create balance snapshots for affected accounts (Req 27.1)
-        self._create_balance_snapshots_for_transaction(transaction)
+            # Create balance snapshots for affected accounts (Req 27.1)
+            self._create_balance_snapshots_for_transaction(transaction)
 
         # Auto-create SharedExpense for qualifying shared transactions (Req 3.5, 3.6)
         self._maybe_create_shared_expense(transaction, user)
@@ -129,11 +131,12 @@ class TransactionService:
         """
         transaction = self._get_transaction_for_user(transaction_id, user)
 
-        # Reverse balance impacts (opposite of create)
-        self._reverse_balance_impacts(transaction)
+        # Reverse balance impacts only if the transaction affected the balance (past/today)
+        if not self._is_future_transaction(transaction.date):
+            self._reverse_balance_impacts(transaction)
 
-        # Create balance snapshots for affected accounts after reversal (Req 27.1)
-        self._create_balance_snapshots_for_transaction(transaction)
+            # Create balance snapshots for affected accounts after reversal (Req 27.1)
+            self._create_balance_snapshots_for_transaction(transaction)
 
         # Unlink planned expenses: set resolved=False on linked PlannedExpenses
         self._unlink_planned_expenses(transaction)
@@ -197,8 +200,12 @@ class TransactionService:
             "scope": transaction.scope.value if transaction.scope else None,
         }
 
-        # Step 1: Reverse old balance impacts
-        self._reverse_balance_impacts(transaction)
+        # Track whether old transaction affected the balance
+        old_was_past = not self._is_future_transaction(transaction.date)
+
+        # Step 1: Reverse old balance impacts (only if it was a past transaction)
+        if old_was_past:
+            self._reverse_balance_impacts(transaction)
 
         # Step 2: Update transaction fields
         updatable_fields = {
@@ -216,11 +223,13 @@ class TransactionService:
 
         db.session.flush()
 
-        # Step 3: Apply new balance impacts
-        self._apply_balance_impacts(transaction)
+        # Step 3: Apply new balance impacts (only if new date is past/today)
+        new_is_past = not self._is_future_transaction(transaction.date)
+        if new_is_past:
+            self._apply_balance_impacts(transaction)
 
-        # Create balance snapshots for affected accounts after update (Req 27.1)
-        self._create_balance_snapshots_for_transaction(transaction)
+            # Create balance snapshots for affected accounts after update (Req 27.1)
+            self._create_balance_snapshots_for_transaction(transaction)
 
         # Audit log (Req 22.1)
         self._audit_service.log_change(
@@ -522,7 +531,11 @@ class TransactionService:
         half_amount = transaction.amount / 2
 
         # Create the SharedExpense record
-        shared_expense = SharedExpense(transaction_id=transaction.id)
+        shared_expense = SharedExpense(
+            transaction_id=transaction.id,
+            paid_by_user_id=user.id,
+            total_amount=transaction.amount,
+        )
         db.session.add(shared_expense)
         db.session.flush()  # Assign ID for foreign key references
 
@@ -534,6 +547,7 @@ class TransactionService:
             shared_expense_id=shared_expense.id,
             user_id=user.id,
             amount=half_amount,
+            share_percentage=Decimal("0.5000"),
         )
         db.session.add(user_share)
 
@@ -543,6 +557,7 @@ class TransactionService:
                 shared_expense_id=shared_expense.id,
                 user_id=partner.id,
                 amount=half_amount,
+                share_percentage=Decimal("0.5000"),
             )
             db.session.add(partner_share)
 
@@ -582,6 +597,21 @@ class TransactionService:
                 f"Transaction amount must be between {MIN_AMOUNT} and "
                 f"{MAX_AMOUNT}. Got: {amount}"
             )
+
+    def _is_future_transaction(self, txn_date) -> bool:
+        """Check if a transaction date is in the future (after today).
+
+        Future transactions block available_balance instead of affecting
+        the account's actual balance.
+
+        Args:
+            txn_date: The transaction date to check.
+
+        Returns:
+            True if the date is strictly after today.
+        """
+        today = date_type.today()
+        return txn_date > today
 
     def _get_transaction_for_user(
         self, transaction_id: int, user: User

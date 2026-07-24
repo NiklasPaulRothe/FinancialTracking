@@ -62,6 +62,9 @@ class BalanceService:
         # Spending / Saving accounts (Req 8.1)
         available = account.balance
 
+        # Subtract future transactions (block money but don't affect balance)
+        available -= self._sum_future_transactions(account)
+
         # Subtract recurring expense rules due between today and next income date
         available -= self._sum_recurring_expenses_due(account)
 
@@ -231,12 +234,71 @@ class BalanceService:
     # Private helpers
     # -------------------------------------------------------------------------
 
+    def _sum_future_transactions(self, account: Account) -> Decimal:
+        """Sum future-dated transactions that block available balance.
+
+        Future transactions (date > today) do not affect the account's actual
+        balance but reduce the available balance to "block" the money.
+
+        For expense/transfer (as source): blocks the amount.
+        For income: does NOT block (future income doesn't reduce available).
+        For transfer (as destination): not blocked (incoming money).
+
+        Args:
+            account: The account to check.
+
+        Returns:
+            Total blocked amount from future transactions.
+        """
+        from app.models.transaction import Transaction, TransactionType
+
+        today = date.today()
+        total = Decimal("0.0")
+
+        # Future expenses from this account
+        expense_sum = (
+            db.session.query(db.func.coalesce(db.func.sum(Transaction.amount), 0))
+            .filter(
+                Transaction.account_id == account.id,
+                Transaction.type == TransactionType.expense,
+                Transaction.date > today,
+            )
+            .scalar()
+        )
+        total += Decimal(str(expense_sum))
+
+        # Future transfers OUT from this account (as source)
+        transfer_out_sum = (
+            db.session.query(db.func.coalesce(db.func.sum(Transaction.amount), 0))
+            .filter(
+                Transaction.account_id == account.id,
+                Transaction.type == TransactionType.transfer,
+                Transaction.date > today,
+            )
+            .scalar()
+        )
+        total += Decimal(str(transfer_out_sum))
+
+        # Future credit card payments from this account (as source)
+        cc_payment_sum = (
+            db.session.query(db.func.coalesce(db.func.sum(Transaction.amount), 0))
+            .filter(
+                Transaction.account_id == account.id,
+                Transaction.type == TransactionType.credit_card_payment,
+                Transaction.date > today,
+            )
+            .scalar()
+        )
+        total += Decimal(str(cc_payment_sum))
+
+        return total
+
     def _sum_recurring_expenses_due(self, account: Account) -> Decimal:
-        """Sum recurring expense rules due between today and next income date.
+        """Sum recurring expense and transfer rules due between today and next income date.
 
         Queries RecurringRule where:
         - active = True
-        - type = 'expense'
+        - type = 'expense' OR 'transfer' (as source account)
         - account_id = target account
         - next_due_date BETWEEN today AND next_income_date (inclusive)
 
@@ -244,7 +306,7 @@ class BalanceService:
             account: The account to check.
 
         Returns:
-            Total amount of recurring expenses due.
+            Total amount of recurring outflows due.
         """
         today = date.today()
 
@@ -260,7 +322,7 @@ class BalanceService:
             .filter(
                 RecurringRule.account_id == account.id,
                 RecurringRule.active == True,  # noqa: E712
-                RecurringRule.type == TransactionType.expense,
+                RecurringRule.type.in_([TransactionType.expense, TransactionType.transfer]),
                 RecurringRule.next_due_date >= today,
                 RecurringRule.next_due_date <= next_income,
             )
@@ -295,13 +357,13 @@ class BalanceService:
 
         next_income = self.get_next_income_date(owner)
 
-        # Get non-monthly recurring expense rules for this account
+        # Get non-monthly recurring expense/transfer rules for this account
         # that are NOT due in the current cycle (those are already counted)
         rules = (
             RecurringRule.query.filter(
                 RecurringRule.account_id == account.id,
                 RecurringRule.active == True,  # noqa: E712
-                RecurringRule.type == TransactionType.expense,
+                RecurringRule.type.in_([TransactionType.expense, TransactionType.transfer]),
                 # Exclude rules due in current cycle (already counted above)
                 RecurringRule.next_due_date > next_income,
             )

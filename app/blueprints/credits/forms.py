@@ -15,6 +15,7 @@ from wtforms import (
 )
 from wtforms.validators import (
     DataRequired,
+    InputRequired,
     Length,
     NumberRange,
 )
@@ -55,7 +56,7 @@ class CreditCreateForm(FlaskForm):
     effective_yearly_rate = DecimalField(
         "Effektiver Jahreszins (als Dezimalzahl, z.B. 0.05 für 5%)",
         validators=[
-            DataRequired(message="Effektiver Jahreszins ist erforderlich."),
+            InputRequired(message="Effektiver Jahreszins ist erforderlich."),
             NumberRange(
                 min=Decimal("0.0"),
                 max=Decimal("1.0"),
@@ -93,6 +94,17 @@ class CreditCreateForm(FlaskForm):
             (CreditScope.shared.value, "Gemeinsam"),
         ],
         validators=[DataRequired(message="Zuordnung ist erforderlich.")],
+    )
+    fixed_interest_amount = DecimalField(
+        "Fester Zinsbetrag (optional, z.B. für Ratenkauf)",
+        validators=[
+            NumberRange(
+                min=Decimal("0.00"),
+                max=Decimal("999999999.99"),
+                message="Fester Zinsbetrag muss zwischen 0,00 und 999.999.999,99 liegen.",
+            ),
+        ],
+        places=2,
     )
     submit = SubmitField("Kredit erstellen")
 
@@ -166,7 +178,7 @@ class CreditEditForm(FlaskForm):
     effective_yearly_rate = DecimalField(
         "Sollzinssatz (Dezimal, z.B. 0.0659 für 6,59%)",
         validators=[
-            DataRequired(message="Zinssatz ist erforderlich."),
+            InputRequired(message="Zinssatz ist erforderlich."),
             NumberRange(min=Decimal("0.0"), max=Decimal("1.0")),
         ],
         places=6,
@@ -190,6 +202,16 @@ class CreditEditForm(FlaskForm):
             (CreditScope.shared.value, "Gemeinsam"),
         ],
         validators=[DataRequired()],
+    )
+    fixed_interest_amount = DecimalField(
+        "Fester Zinsbetrag (optional, z.B. für Ratenkauf)",
+        validators=[
+            NumberRange(
+                min=Decimal("0.00"),
+                max=Decimal("999999999.99"),
+            ),
+        ],
+        places=2,
     )
     submit = SubmitField("Speichern")
 

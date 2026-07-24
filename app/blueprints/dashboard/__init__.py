@@ -144,16 +144,53 @@ def set_income():
 @dashboard_bp.route("/run-recurring", methods=["POST"])
 @login_required
 def run_recurring():
-    """Manually trigger recurring rule processing for the current user."""
+    """Manually trigger recurring rule processing and post due future transactions."""
     from app.services.recurring_service import RecurringService
+    from app.services.transaction_service import TransactionService
+    from app.models.transaction import Transaction
+    from app.models.account import AccountBalanceSnapshot
+    from datetime import date
 
     service = RecurringService()
+    txn_service = TransactionService()
+    today = date.today()
+
     try:
-        generated = service.process_due_rules(current_user)
-        if generated:
-            flash(f"{len(generated)} Transaktion(en) aus Daueraufträgen gebucht.", "success")
+        generated, notifications = service.process_due_rules(current_user)
+
+        # Also apply balance impacts for future transactions that are now due
+        future_posted = 0
+        due_transactions = Transaction.query.filter(
+            Transaction.user_id == current_user.id,
+            Transaction.date <= today,
+            Transaction.posted == True,  # noqa: E712
+        ).all()
+
+        for txn in due_transactions:
+            # Check if balance was already applied (has a snapshot after creation)
+            has_snapshot = AccountBalanceSnapshot.query.filter(
+                AccountBalanceSnapshot.account_id == txn.account_id,
+                AccountBalanceSnapshot.snapshot_date == txn.date,
+                AccountBalanceSnapshot.created_at >= txn.created_at,
+            ).first()
+            if has_snapshot:
+                continue
+            try:
+                txn_service._apply_balance_impacts(txn)
+                txn_service._create_balance_snapshots_for_transaction(txn)
+                future_posted += 1
+            except Exception:
+                db.session.rollback()
+                continue
+
+        if future_posted > 0:
+            db.session.commit()
+
+        total = len(generated) + future_posted
+        if total > 0:
+            flash(f"{total} Transaktion(en) verbucht.", "success")
         else:
-            flash("Keine fälligen Daueraufträge gefunden.", "info")
+            flash("Keine fälligen Transaktionen gefunden.", "info")
     except Exception as e:
         flash(f"Fehler: {e}", "danger")
 

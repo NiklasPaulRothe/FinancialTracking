@@ -448,6 +448,9 @@ class RecurringRule(db.Model):
     category_id = db.Column(
         db.Integer, db.ForeignKey("categories.id"), nullable=True
     )
+    saving_goal_id = db.Column(
+        db.Integer, db.ForeignKey("saving_goals.id"), nullable=True
+    )
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id"), nullable=False
     )
@@ -468,6 +471,9 @@ class RecurringRule(db.Model):
     )
     tags = db.relationship(
         "Tag", secondary=recurring_rule_tags, backref=db.backref("recurring_rules", lazy="dynamic")
+    )
+    saving_goal = db.relationship(
+        "SavingGoal", backref=db.backref("recurring_rules", lazy="dynamic")
     )
 
     __table_args__ = (

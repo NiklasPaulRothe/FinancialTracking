@@ -101,6 +101,9 @@ class RecurringService:
                     # Apply credit repayment if this rule is linked to a credit
                     self._apply_credit_repayment_if_linked(rule, txn, user)
 
+                    # Auto-create saving contribution if linked to a saving goal
+                    self._create_saving_contribution_if_linked(rule, txn, user)
+
                     # Generate posted notification (Req 5.4)
                     notifications.append(
                         RecurringNotification(
@@ -266,6 +269,9 @@ class RecurringService:
         # Apply balance impacts (this may raise OverdraftLimitExceeded)
         self.transaction_service._apply_balance_impacts(transaction)
 
+        # Create balance snapshots (marks this transaction as "applied")
+        self.transaction_service._create_balance_snapshots_for_transaction(transaction)
+
         # Audit log (Req 22.2 - system-generated recurring rule posting)
         self._audit_service.log_change(
             action="create",
@@ -337,3 +343,29 @@ class RecurringService:
         except Exception:
             # Log but don't fail the transaction
             pass
+
+    def _create_saving_contribution_if_linked(
+        self, rule: RecurringRule, transaction: Transaction, user: User
+    ) -> None:
+        """If this recurring rule is linked to a saving goal, auto-create a contribution.
+
+        The contribution blocks the transfer amount from the source account's
+        available balance.
+        """
+        if not rule.saving_goal_id:
+            return
+
+        from app.models.budget import SavingGoal, SavingGoalStatus, SavingContribution
+
+        goal = db.session.get(SavingGoal, rule.saving_goal_id)
+        if goal is None or goal.status != SavingGoalStatus.active:
+            return
+
+        contribution = SavingContribution(
+            saving_goal_id=goal.id,
+            account_id=rule.account_id,
+            amount=transaction.amount,
+            note=f"Auto: {rule.name}",
+            user_id=user.id,
+        )
+        db.session.add(contribution)

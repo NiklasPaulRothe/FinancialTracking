@@ -148,6 +148,9 @@ class CreditService:
         Multiplied by the number of days since the last CreditPayment
         (or disbursement_date if no payments exist).
 
+        For credits with fixed_interest_amount, no accrual is performed —
+        the fixed interest is already known upfront.
+
         This replaces the daily scheduler-based accrual with a point-in-time
         calculation done right before a repayment is applied.
         """
@@ -155,6 +158,11 @@ class CreditService:
 
         if credit.status == CreditStatus.paid_off:
             return Decimal("0.000000")
+
+        # Fixed interest credits don't accrue — interest is predetermined
+        if credit.uses_fixed_interest:
+            return Decimal("0.000000")
+
         if credit.remaining_balance <= 0 or credit.effective_yearly_rate <= 0:
             return Decimal("0.000000")
 
@@ -199,6 +207,8 @@ class CreditService:
         Formula (nominal/simple): daily_interest = remaining_balance * rate / 365
         This matches how German banks calculate Sollzins on consumer credits.
 
+        For credits with fixed_interest_amount, no daily accrual is performed.
+
         Args:
             credit: The credit to accrue interest on.
 
@@ -206,6 +216,10 @@ class CreditService:
             The daily interest amount accrued.
         """
         if credit.status == CreditStatus.paid_off:
+            return Decimal("0.000000")
+
+        # Fixed interest credits don't accrue daily — interest is predetermined
+        if credit.uses_fixed_interest:
             return Decimal("0.000000")
 
         if credit.remaining_balance <= 0 or credit.effective_yearly_rate <= 0:
@@ -272,9 +286,12 @@ class CreditService:
 
         Validates: Requirements 11.4, 11.5, 11.9
 
-        If the repayment exceeds total owed (accrued_interest + remaining_balance),
-        the applied amount is capped, remaining_balance is set to zero,
-        accrued_interest is set to zero, and status becomes paid_off.
+        For fixed-interest credits: payments reduce the fixed_interest_amount
+        first, then the remaining_balance. No daily accrual is involved.
+
+        For rate-based credits: payments reduce accrued_interest first, then
+        remaining_balance. If the repayment exceeds total owed, the applied
+        amount is capped and status becomes paid_off.
 
         Args:
             credit: The credit to apply repayment to.
@@ -287,44 +304,67 @@ class CreditService:
         if credit.status == CreditStatus.paid_off:
             raise ValueError("Cannot apply repayment to a paid-off credit.")
 
-        total_owed = credit.accrued_interest.quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        ) + credit.remaining_balance
+        if credit.uses_fixed_interest:
+            # Fixed interest: total owed = remaining_balance + fixed_interest_amount
+            total_owed = credit.remaining_balance + credit.fixed_interest_amount
+            applied_amount = min(amount, total_owed)
 
-        # Cap the applied amount at total owed (overpayment cap)
-        applied_amount = min(amount, total_owed)
+            # Pay off fixed interest first
+            interest_portion = min(applied_amount, credit.fixed_interest_amount)
+            remainder = applied_amount - interest_portion
 
-        # Allocate to interest first
-        accrued_rounded = credit.accrued_interest.quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-        interest_portion = min(applied_amount, accrued_rounded)
-        remainder = applied_amount - interest_portion
+            # Then principal
+            principal_portion = min(remainder, credit.remaining_balance)
 
-        # Then allocate remainder to principal
-        principal_portion = min(remainder, credit.remaining_balance)
+            # Update state
+            credit.fixed_interest_amount = credit.fixed_interest_amount - interest_portion
+            if credit.fixed_interest_amount < 0:
+                credit.fixed_interest_amount = Decimal("0.00")
+            credit.remaining_balance = credit.remaining_balance - principal_portion
 
-        # Update credit state
-        # Reduce accrued_interest by the interest portion paid
-        if interest_portion > 0:
-            credit.accrued_interest = credit.accrued_interest - interest_portion
-            # Clamp to zero to avoid floating point issues
-            if credit.accrued_interest < 0:
-                credit.accrued_interest = Decimal("0.000000")
+            # Check if fully paid off
+            if credit.remaining_balance <= 0 and credit.fixed_interest_amount <= 0:
+                credit.remaining_balance = Decimal("0.00")
+                credit.fixed_interest_amount = Decimal("0.00")
+                credit.status = CreditStatus.paid_off
+        else:
+            # Rate-based: original logic
+            total_owed = credit.accrued_interest.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            ) + credit.remaining_balance
 
-        credit.remaining_balance = credit.remaining_balance - principal_portion
+            # Cap the applied amount at total owed (overpayment cap)
+            applied_amount = min(amount, total_owed)
 
-        # Check if fully paid off
-        if (
-            credit.remaining_balance <= 0
-            and credit.accrued_interest.quantize(
+            # Allocate to interest first
+            accrued_rounded = credit.accrued_interest.quantize(
                 Decimal("0.01"), rounding=ROUND_HALF_UP
             )
-            <= 0
-        ):
-            credit.remaining_balance = Decimal("0.00")
-            credit.accrued_interest = Decimal("0.000000")
-            credit.status = CreditStatus.paid_off
+            interest_portion = min(applied_amount, accrued_rounded)
+            remainder = applied_amount - interest_portion
+
+            # Then allocate remainder to principal
+            principal_portion = min(remainder, credit.remaining_balance)
+
+            # Update credit state
+            if interest_portion > 0:
+                credit.accrued_interest = credit.accrued_interest - interest_portion
+                if credit.accrued_interest < 0:
+                    credit.accrued_interest = Decimal("0.000000")
+
+            credit.remaining_balance = credit.remaining_balance - principal_portion
+
+            # Check if fully paid off
+            if (
+                credit.remaining_balance <= 0
+                and credit.accrued_interest.quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                <= 0
+            ):
+                credit.remaining_balance = Decimal("0.00")
+                credit.accrued_interest = Decimal("0.000000")
+                credit.status = CreditStatus.paid_off
 
         # Create CreditPayment record
         payment = CreditPayment(

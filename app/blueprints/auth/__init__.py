@@ -23,7 +23,7 @@ MAX_HOUSEHOLD_USERS = 2
 def login():
     """Handle user login."""
     if current_user.is_authenticated:
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("dashboard.index"))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -34,7 +34,7 @@ def login():
 
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get("next")
-        return redirect(next_page or url_for("auth.login"))
+        return redirect(next_page or url_for("dashboard.index"))
 
     return render_template("auth/login.html", form=form)
 
@@ -43,7 +43,7 @@ def login():
 def register():
     """Handle new user registration with 2-user household limit."""
     if current_user.is_authenticated:
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("dashboard.index"))
 
     form = RegistrationForm()
     if form.validate_on_submit():

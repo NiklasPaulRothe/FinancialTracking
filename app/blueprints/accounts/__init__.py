@@ -181,27 +181,28 @@ def detail(id):
     # Compute blocked amount breakdown with individual items
     blocked_sections = []
     total_blocked = Decimal("0.00")
-    if account.type != AccountType.credit_card:
-        from app.services.balance_service import BalanceService
-        from app.models.transaction import RecurringRule, TransactionType, RecurringFrequency
-        from app.models.planned_expense import PlannedExpense
-        from app.models.budget import SavingContribution
-        from app.models.user import User
-        from datetime import date
+    from app.services.balance_service import BalanceService
+    from app.models.transaction import RecurringRule, TransactionType, RecurringFrequency
+    from app.models.planned_expense import PlannedExpense
+    from app.models.budget import SavingContribution
+    from app.models.user import User
+    from datetime import date
 
-        balance_service = BalanceService()
+    balance_service = BalanceService()
+
+    if account.type != AccountType.credit_card:
         owner = db.session.get(User, account.owner_id)
         today = date.today()
 
         try:
             next_income = balance_service.get_next_income_date(owner)
 
-            # Section 1: Recurring expenses due in current cycle (individual rules)
+            # Section 1: Recurring expenses AND transfers due in current cycle
             due_rules = (
                 RecurringRule.query.filter(
                     RecurringRule.account_id == account.id,
                     RecurringRule.active == True,  # noqa: E712
-                    RecurringRule.type == TransactionType.expense,
+                    RecurringRule.type.in_([TransactionType.expense, TransactionType.transfer]),
                     RecurringRule.next_due_date >= today,
                     RecurringRule.next_due_date <= next_income,
                 ).all()
@@ -212,12 +213,12 @@ def detail(id):
                 blocked_sections.append({"title": "Daueraufträge (fällig bis nächstes Einkommen)", "items": items, "total": section_total})
                 total_blocked += section_total
 
-            # Section 2: Non-monthly recurring reserves
+            # Section 2: Non-monthly recurring reserves (expenses AND transfers)
             reserve_rules = (
                 RecurringRule.query.filter(
                     RecurringRule.account_id == account.id,
                     RecurringRule.active == True,  # noqa: E712
-                    RecurringRule.type == TransactionType.expense,
+                    RecurringRule.type.in_([TransactionType.expense, TransactionType.transfer]),
                     RecurringRule.next_due_date > next_income,
                 ).all()
             )
@@ -265,8 +266,32 @@ def detail(id):
                 section_total = sum(c.amount for c in contributions)
                 blocked_sections.append({"title": "Sparbeiträge", "items": contrib_items, "total": section_total})
                 total_blocked += section_total
+
+            # Section 5: Future transactions (not yet applied to balance)
+            from app.models.transaction import Transaction
+            future_txns = Transaction.query.filter(
+                Transaction.account_id == account.id,
+                Transaction.date > today,
+                Transaction.type.in_([TransactionType.expense, TransactionType.transfer]),
+            ).all()
+            if future_txns:
+                future_items = [{"name": t.description or f"Transaktion {t.date.strftime('%d.%m.%Y')}", "amount": t.amount, "date": t.date.strftime("%d.%m.%Y")} for t in future_txns]
+                section_total = sum(t.amount for t in future_txns)
+                blocked_sections.append({"title": "Zukünftige Transaktionen", "items": future_items, "total": section_total})
+                total_blocked += section_total
         except Exception:
             pass
+
+    # Compute available balance
+    available_balance = account.balance
+    if account.type != AccountType.credit_card:
+        try:
+            available_balance = balance_service.get_available_balance(account.id)
+        except Exception:
+            pass
+    else:
+        credit_limit = account.credit_limit or Decimal("0.0")
+        available_balance = credit_limit + account.balance
 
     return render_template(
         "accounts/detail.html",
@@ -275,6 +300,7 @@ def detail(id):
         open_cc_transactions=open_cc_transactions,
         blocked_sections=blocked_sections,
         total_blocked=total_blocked,
+        available_balance=available_balance,
     )
 
 

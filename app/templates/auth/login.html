@@ -2,7 +2,7 @@
 
 {% block title %}Anmelden — Haushaltsbuch{% endblock %}
 
-{% block content %}
+{% block content_unauth %}
 <h1>Anmelden</h1>
 
 <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
